@@ -1,0 +1,81 @@
+import type { Server } from 'node:http';
+
+import app from './app';
+import { disconnectDatabase, connectDatabase } from './config/database';
+import { env } from './config/env';
+import { logger } from './logger/logger';
+
+let server: Server | undefined;
+
+async function startServer(): Promise<void> {
+    try {
+        await connectDatabase();
+
+        server = app.listen(env.port, () => {
+            logger.info(
+                {
+                    nodeEnv: env.nodeEnv,
+                    port: env.port,
+                },
+                'Server started',
+            );
+        });
+    } catch (error: unknown) {
+        logger.error(
+            {
+                errorMessage: error instanceof Error ? error.message : 'Unknown startup error',
+                errorName: error instanceof Error ? error.name : 'UnknownError',
+            },
+            'Failed to start server',
+        );
+        process.exit(1);
+    }
+}
+
+async function closeHttpServer(): Promise<void> {
+    if (server === undefined) {
+        return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+        server?.close((error) => {
+            if (error !== undefined) {
+                reject(error);
+                return;
+            }
+
+            resolve();
+        });
+    });
+}
+
+async function shutdown(signal: NodeJS.Signals): Promise<void> {
+    logger.info({ signal }, 'Shutdown signal received');
+
+    try {
+        await closeHttpServer();
+        await disconnectDatabase();
+        logger.info({ signal }, 'Shutdown completed');
+        process.exit(0);
+    } catch (error: unknown) {
+        logger.error(
+            {
+                errorMessage: error instanceof Error ? error.message : 'Unknown shutdown error',
+                errorName: error instanceof Error ? error.name : 'UnknownError',
+                signal,
+            },
+            'Shutdown failed',
+        );
+        process.exit(1);
+    }
+}
+
+process.on('SIGINT', () => {
+    void shutdown('SIGINT');
+});
+
+process.on('SIGTERM', () => {
+    void shutdown('SIGTERM');
+});
+
+void startServer();
