@@ -11,14 +11,34 @@ async function startServer(): Promise<void> {
     try {
         await connectDatabase();
 
-        server = app.listen(env.port, () => {
-            logger.info(
-                {
-                    nodeEnv: env.nodeEnv,
-                    port: env.port,
-                },
-                'Server started',
-            );
+        await new Promise<void>((resolve, reject) => {
+            server = app.listen(env.port);
+
+            const handleListening = (): void => {
+                if (server !== undefined) {
+                    server.off('error', handleError);
+                }
+
+                logger.info(
+                    {
+                        nodeEnv: env.nodeEnv,
+                        port: env.port,
+                    },
+                    'Server started',
+                );
+                resolve();
+            };
+
+            const handleError = (error: Error): void => {
+                if (server !== undefined) {
+                    server.off('listening', handleListening);
+                }
+
+                reject(error);
+            };
+
+            server.once('listening', handleListening);
+            server.once('error', handleError);
         });
     } catch (error: unknown) {
         logger.error(
@@ -37,16 +57,23 @@ async function closeHttpServer(): Promise<void> {
         return;
     }
 
-    await new Promise<void>((resolve, reject) => {
-        server?.close((error) => {
-            if (error !== undefined) {
-                reject(error);
-                return;
-            }
+    const currentServer = server;
 
-            resolve();
+    try {
+        await new Promise<void>((resolve, reject) => {
+            currentServer.close((error) => {
+                if (error !== undefined) {
+                    reject(error);
+                    return;
+                }
+
+                resolve();
+            });
         });
-    });
+    } catch (error: unknown) {
+        logger.error({ err: error }, 'HTTP server shutdown failed');
+        throw error;
+    }
 }
 
 async function shutdown(signal: NodeJS.Signals): Promise<void> {

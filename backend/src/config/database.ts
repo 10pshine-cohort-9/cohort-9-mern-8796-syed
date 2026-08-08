@@ -29,5 +29,10 @@ export async function disconnectDatabase(): Promise<void> {
         return;
     }
 
-    await mongoose.disconnect();
+    try {
+        await mongoose.disconnect();
+    } catch (error: unknown) {
+        logger.error({ err: error }, 'Database disconnect failed');
+        throw error;
+    }
 }
