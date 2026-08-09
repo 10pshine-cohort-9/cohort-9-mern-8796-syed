@@ -1,28 +1,51 @@
+import { randomUUID } from 'node:crypto';
+
 import jwt, { type JwtPayload } from 'jsonwebtoken';
 
 import { env } from '../config/env';
+import { logger } from '../logger/logger';
+import TokenRevocation from '../models/TokenRevocation';
+import { ApiError } from '../utils/ApiError';
 
 export type AuthTokenPayload = JwtPayload & {
+    readonly jti: string;
     readonly sub: string;
 };
 
 const AUTH_TOKEN_EXPIRY = '7d';
 
 function isAuthTokenPayload(payload: string | JwtPayload): payload is AuthTokenPayload {
-    return typeof payload !== 'string' && typeof payload.sub === 'string';
+    return typeof payload !== 'string' && typeof payload.sub === 'string' && typeof payload.jti === 'string';
 }
 
 export function signAuthToken(userId: string): string {
-    return jwt.sign({ sub: userId }, env.jwtSecret, {
+    const tokenId = randomUUID();
+
+    return jwt.sign({ jti: tokenId, sub: userId }, env.jwtSecret, {
         expiresIn: AUTH_TOKEN_EXPIRY,
     });
 }
 
-export function verifyAuthToken(token: string): AuthTokenPayload {
+export async function verifyAuthToken(token: string): Promise<AuthTokenPayload> {
     const payload = jwt.verify(token, env.jwtSecret);
 
     if (!isAuthTokenPayload(payload)) {
-        throw new Error('Invalid authentication token payload');
+        throw new ApiError('Invalid authentication token payload', 401);
+    }
+
+    try {
+        const revokedToken = await TokenRevocation.findOne({ jti: payload.jti }).select('_id').lean();
+
+        if (revokedToken !== null) {
+            throw new ApiError('Authentication token revoked', 401);
+        }
+    } catch (error: unknown) {
+        if (error instanceof ApiError) {
+            throw error;
+        }
+
+        logger.error({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'Token revocation lookup failed');
+        throw new ApiError('Authentication failed', 401);
     }
 
     return payload;

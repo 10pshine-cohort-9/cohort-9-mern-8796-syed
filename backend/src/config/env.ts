@@ -28,22 +28,29 @@ const DEFAULT_LOG_LEVEL = 'info';
 const DEFAULT_PORT = 5000;
 const DEVELOPMENT_JWT_SECRET = 'development-jwt-secret';
 const DEVELOPMENT_MONGO_URI = 'mongodb://127.0.0.1:27017/notes-app';
-const VALID_NODE_ENVS: ReadonlySet<NodeEnvironment> = new Set([
-    'development',
-    'production',
-    'test',
+const EXAMPLE_JWT_SECRETS = new Set([
+    'development-jwt-secret',
+    'change-me-in-development',
+    'jwt-secret',
+    'secret',
 ]);
 
 function parseNodeEnv(value: string | undefined): NodeEnvironment {
-    if (value === undefined || value.trim() === '') {
+    if (value === undefined) {
         return 'development';
     }
 
-    switch (value) {
+    const normalizedValue = value.trim();
+
+    if (normalizedValue === '') {
+        throw new Error('NODE_ENV is required');
+    }
+
+    switch (normalizedValue) {
         case 'development':
         case 'production':
         case 'test':
-            return value;
+            return normalizedValue;
         default:
             throw new Error(`Invalid NODE_ENV value: ${value}`);
     }
@@ -102,7 +109,15 @@ function parseMongoUri(value: string | undefined, nodeEnv: NodeEnvironment): str
 
 function parseJwtSecret(value: string | undefined, nodeEnv: NodeEnvironment): string {
     if (value !== undefined && value.trim() !== '') {
-        return value.trim();
+        const normalizedValue = value.trim();
+
+        if (nodeEnv !== 'development') {
+            if (EXAMPLE_JWT_SECRETS.has(normalizedValue.toLowerCase()) || normalizedValue.length < 32) {
+                throw new Error('JWT_SECRET must be configured with a strong secret outside development');
+            }
+        }
+
+        return normalizedValue;
     }
 
     if (nodeEnv === 'development') {

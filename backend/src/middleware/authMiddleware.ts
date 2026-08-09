@@ -5,6 +5,7 @@ import { ApiError } from '../utils/ApiError';
 import { verifyAuthToken } from '../utils/jwt';
 
 export type AuthenticatedUserContext = {
+    readonly tokenId: string;
     readonly userId: string;
 };
 
@@ -24,7 +25,7 @@ function parseBearerToken(authorizationHeader: string): string {
     return token;
 }
 
-export function authMiddleware(req: Request, _res: Response, next: NextFunction): void {
+export async function authMiddleware(req: Request, _res: Response, next: NextFunction): Promise<void> {
     const authorizationHeader = req.header('authorization');
 
     if (authorizationHeader === undefined) {
@@ -34,9 +35,10 @@ export function authMiddleware(req: Request, _res: Response, next: NextFunction)
 
     try {
         const token = parseBearerToken(authorizationHeader);
-        const payload = verifyAuthToken(token);
+        const payload = await verifyAuthToken(token);
 
         req.authenticatedUser = {
+            tokenId: payload.jti,
             userId: payload.sub,
         };
 

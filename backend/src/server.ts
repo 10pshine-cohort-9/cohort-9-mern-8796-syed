@@ -6,6 +6,7 @@ import { env } from './config/env';
 import { logger } from './logger/logger';
 
 let server: Server | undefined;
+let shutdownPromise: Promise<void> | undefined;
 
 async function startServer(): Promise<void> {
     try {
@@ -77,24 +78,32 @@ async function closeHttpServer(): Promise<void> {
 }
 
 async function shutdown(signal: NodeJS.Signals): Promise<void> {
-    logger.info({ signal }, 'Shutdown signal received');
-
-    try {
-        await closeHttpServer();
-        await disconnectDatabase();
-        logger.info({ signal }, 'Shutdown completed');
-        process.exit(0);
-    } catch (error: unknown) {
-        logger.error(
-            {
-                errorMessage: error instanceof Error ? error.message : 'Unknown shutdown error',
-                errorName: error instanceof Error ? error.name : 'UnknownError',
-                signal,
-            },
-            'Shutdown failed',
-        );
-        process.exit(1);
+    if (shutdownPromise !== undefined) {
+        return shutdownPromise;
     }
+
+    shutdownPromise = (async () => {
+        logger.info({ signal }, 'Shutdown signal received');
+
+        try {
+            await closeHttpServer();
+            await disconnectDatabase();
+            logger.info({ signal }, 'Shutdown completed');
+            process.exit(0);
+        } catch (error: unknown) {
+            logger.error(
+                {
+                    errorMessage: error instanceof Error ? error.message : 'Unknown shutdown error',
+                    errorName: error instanceof Error ? error.name : 'UnknownError',
+                    signal,
+                },
+                'Shutdown failed',
+            );
+            process.exit(1);
+        }
+    })();
+
+    return shutdownPromise;
 }
 
 process.on('SIGINT', () => {

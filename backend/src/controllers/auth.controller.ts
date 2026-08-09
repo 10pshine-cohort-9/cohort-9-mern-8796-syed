@@ -44,12 +44,13 @@ const meHandler: RequestHandler = async (req, res) => {
 
 const logoutHandler: RequestHandler = async (req, res) => {
     const userId = req.authenticatedUser?.userId;
+    const tokenId = req.authenticatedUser?.tokenId;
 
-    if (userId === undefined) {
+    if (userId === undefined || tokenId === undefined) {
         throw new ApiError('Authentication required', 401);
     }
 
-    const result = await logout(userId);
+    const result = await logout(userId, tokenId);
 
     return sendSuccess(res, 200, 'Logout successful', result);
 };

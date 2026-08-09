@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 
 import { logger } from '../logger/logger';
+import TokenRevocation from '../models/TokenRevocation';
 import User, { type PublicUser } from '../models/User';
 import { ApiError } from '../utils/ApiError';
 import { signAuthToken } from '../utils/jwt';
@@ -71,93 +72,139 @@ function isDuplicateKeyError(error: unknown): boolean {
 }
 
 export async function register(input: RegistrationInput): Promise<AuthResult> {
-    const name = validateName(input.name);
-    const email = normalizeEmail(input.email);
-
-    validateEmail(email);
-    validatePassword(input.password);
-
-    const existingUser = await User.findOne({ email }).select('_id').lean();
-
-    if (existingUser !== null) {
-        throw new ApiError('Email is already registered', 409);
-    }
-
-    const hashedPassword = await bcrypt.hash(input.password, BCRYPT_SALT_ROUNDS);
-
     try {
-        const user = await User.create({
-            email,
-            name,
-            password: hashedPassword,
-        });
+        const name = validateName(input.name);
+        const email = normalizeEmail(input.email);
+
+        validateEmail(email);
+        validatePassword(input.password);
+
+        if (bcrypt.truncates(input.password)) {
+            throw new ApiError('Password exceeds the maximum length supported by bcrypt', 400);
+        }
+
+        const existingUser = await User.findOne({ email }).select('_id').lean();
+
+        if (existingUser !== null) {
+            throw new ApiError('Email is already registered', 409);
+        }
+
+        const hashedPassword = await bcrypt.hash(input.password, BCRYPT_SALT_ROUNDS);
+
+        try {
+            const user = await User.create({
+                email,
+                name,
+                password: hashedPassword,
+            });
+            const token = signAuthToken(user.id);
+
+            logger.info({ userId: user.id }, 'User registered successfully');
+
+            return {
+                token,
+                user: toPublicUser(user),
+            };
+        } catch (error: unknown) {
+            if (isDuplicateKeyError(error)) {
+                throw new ApiError('Email is already registered', 409);
+            }
+
+            throw error;
+        }
+    } catch (error: unknown) {
+        if (error instanceof ApiError) {
+            throw error;
+        }
+
+        logger.error({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'Registration failed');
+        throw new ApiError('Registration failed', 500);
+    }
+}
+
+export async function login(input: AuthCredentials): Promise<AuthResult> {
+    try {
+        const email = normalizeEmail(input.email);
+
+        validateEmail(email);
+        validatePassword(input.password);
+
+        const user = await User.findOne({ email }).select('+password');
+
+        if (user === null) {
+            logger.warn({ reason: 'invalid_credentials' }, 'Authentication failed');
+            throw new ApiError('Invalid email or password', 401);
+        }
+
+        const passwordMatches = await bcrypt.compare(input.password, user.password);
+
+        if (!passwordMatches) {
+            logger.warn({ reason: 'invalid_credentials', userId: user.id }, 'Authentication failed');
+            throw new ApiError('Invalid email or password', 401);
+        }
+
         const token = signAuthToken(user.id);
 
-        logger.info({ userId: user.id }, 'User registered successfully');
+        logger.info({ userId: user.id }, 'User logged in successfully');
 
         return {
             token,
             user: toPublicUser(user),
         };
     } catch (error: unknown) {
-        if (isDuplicateKeyError(error)) {
-            throw new ApiError('Email is already registered', 409);
+        if (error instanceof ApiError) {
+            throw error;
         }
 
-        throw error;
+        logger.error({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'Login failed');
+        throw new ApiError('Login failed', 500);
     }
 }
 
-export async function login(input: AuthCredentials): Promise<AuthResult> {
-    const email = normalizeEmail(input.email);
+export async function logout(userId: string, tokenId: string): Promise<{ readonly userId: string }> {
+    try {
+        const user = await User.findById(userId);
 
-    validateEmail(email);
-    validatePassword(input.password);
+        if (user === null) {
+            throw new ApiError('Authenticated user not found', 401);
+        }
 
-    const user = await User.findOne({ email }).select('+password');
+        const existingRevocation = await TokenRevocation.findOne({ jti: tokenId }).select('_id').lean();
 
-    if (user === null) {
-        logger.warn({ reason: 'invalid_credentials' }, 'Authentication failed');
-        throw new ApiError('Invalid email or password', 401);
+        if (existingRevocation === null) {
+            await TokenRevocation.create({ jti: tokenId, userId });
+        }
+
+        logger.info({ userId }, 'User logged out successfully');
+
+        return {
+            userId,
+        };
+    } catch (error: unknown) {
+        if (error instanceof ApiError) {
+            throw error;
+        }
+
+        logger.error({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'Logout failed');
+        throw new ApiError('Logout failed', 500);
     }
-
-    const passwordMatches = await bcrypt.compare(input.password, user.password);
-
-    if (!passwordMatches) {
-        logger.warn({ reason: 'invalid_credentials', userId: user.id }, 'Authentication failed');
-        throw new ApiError('Invalid email or password', 401);
-    }
-
-    const token = signAuthToken(user.id);
-
-    logger.info({ userId: user.id }, 'User logged in successfully');
-
-    return {
-        token,
-        user: toPublicUser(user),
-    };
-}
-
-export async function logout(userId: string): Promise<{ readonly userId: string }> {
-    const user = await User.findById(userId);
-
-    if (user === null) {
-        throw new ApiError('Authenticated user not found', 401);
-    }
-
-    logger.info({ userId }, 'User logged out successfully');
-
-    return {
-        userId,
-    };
 }
 
 export async function getAuthenticatedUser(userId: string): Promise<PublicUser> {
-    const user = await User.findById(userId);
+    try {
+        const user = await User.findById(userId);
 
-    if (user === null) {
-        throw new ApiError('Authenticated user not found', 401);
+        if (user === null) {
+            throw new ApiError('Authenticated user not found', 401);
+        }
+
+        return toPublicUser(user);
+    } catch (error: unknown) {
+        if (error instanceof ApiError) {
+            throw error;
+        }
+
+        logger.error({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'Authenticated user lookup failed');
+        throw new ApiError('Authenticated user lookup failed', 500);
     }
-
-    return toPublicUser(user);
 }
