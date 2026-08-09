@@ -1,0 +1,163 @@
+import bcrypt from 'bcryptjs';
+
+import { logger } from '../logger/logger';
+import User, { type PublicUser } from '../models/User';
+import { ApiError } from '../utils/ApiError';
+import { signAuthToken } from '../utils/jwt';
+
+export type AuthCredentials = {
+    readonly email: string;
+    readonly password: string;
+};
+
+export type RegistrationInput = AuthCredentials & {
+    readonly name: string;
+};
+
+export type AuthResult = {
+    readonly token: string;
+    readonly user: PublicUser;
+};
+
+const BCRYPT_SALT_ROUNDS = 12;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
+}
+
+function validateEmail(email: string): void {
+    if (!EMAIL_PATTERN.test(email)) {
+        throw new ApiError('Invalid email address', 400);
+    }
+}
+
+function validatePassword(password: string): void {
+    if (password.trim().length === 0) {
+        throw new ApiError('Password is required', 400);
+    }
+
+    if (password.length < 8) {
+        throw new ApiError('Password must be at least 8 characters long', 400);
+    }
+}
+
+function validateName(name: string): string {
+    const normalizedName = name.trim();
+
+    if (normalizedName.length === 0) {
+        throw new ApiError('Name is required', 400);
+    }
+
+    return normalizedName;
+}
+
+function toPublicUser(user: { readonly _id: { toString(): string }; readonly email: string; readonly name: string }): PublicUser {
+    return {
+        email: user.email,
+        id: user._id.toString(),
+        name: user.name,
+    };
+}
+
+function isDuplicateKeyError(error: unknown): boolean {
+    if (typeof error !== 'object' || error === null) {
+        return false;
+    }
+
+    const candidate = error as { code?: unknown };
+
+    return candidate.code === 11000;
+}
+
+export async function register(input: RegistrationInput): Promise<AuthResult> {
+    const name = validateName(input.name);
+    const email = normalizeEmail(input.email);
+
+    validateEmail(email);
+    validatePassword(input.password);
+
+    const existingUser = await User.findOne({ email }).select('_id').lean();
+
+    if (existingUser !== null) {
+        throw new ApiError('Email is already registered', 409);
+    }
+
+    const hashedPassword = await bcrypt.hash(input.password, BCRYPT_SALT_ROUNDS);
+
+    try {
+        const user = await User.create({
+            email,
+            name,
+            password: hashedPassword,
+        });
+        const token = signAuthToken(user.id);
+
+        logger.info({ userId: user.id }, 'User registered successfully');
+
+        return {
+            token,
+            user: toPublicUser(user),
+        };
+    } catch (error: unknown) {
+        if (isDuplicateKeyError(error)) {
+            throw new ApiError('Email is already registered', 409);
+        }
+
+        throw error;
+    }
+}
+
+export async function login(input: AuthCredentials): Promise<AuthResult> {
+    const email = normalizeEmail(input.email);
+
+    validateEmail(email);
+    validatePassword(input.password);
+
+    const user = await User.findOne({ email }).select('+password');
+
+    if (user === null) {
+        logger.warn({ reason: 'invalid_credentials' }, 'Authentication failed');
+        throw new ApiError('Invalid email or password', 401);
+    }
+
+    const passwordMatches = await bcrypt.compare(input.password, user.password);
+
+    if (!passwordMatches) {
+        logger.warn({ reason: 'invalid_credentials', userId: user.id }, 'Authentication failed');
+        throw new ApiError('Invalid email or password', 401);
+    }
+
+    const token = signAuthToken(user.id);
+
+    logger.info({ userId: user.id }, 'User logged in successfully');
+
+    return {
+        token,
+        user: toPublicUser(user),
+    };
+}
+
+export async function logout(userId: string): Promise<{ readonly userId: string }> {
+    const user = await User.findById(userId);
+
+    if (user === null) {
+        throw new ApiError('Authenticated user not found', 401);
+    }
+
+    logger.info({ userId }, 'User logged out successfully');
+
+    return {
+        userId,
+    };
+}
+
+export async function getAuthenticatedUser(userId: string): Promise<PublicUser> {
+    const user = await User.findById(userId);
+
+    if (user === null) {
+        throw new ApiError('Authenticated user not found', 401);
+    }
+
+    return toPublicUser(user);
+}
