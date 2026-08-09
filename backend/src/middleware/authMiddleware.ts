@@ -5,6 +5,7 @@ import { ApiError } from '../utils/ApiError';
 import { verifyAuthToken } from '../utils/jwt';
 
 export type AuthenticatedUserContext = {
+    readonly expiresAt?: Date;
     readonly tokenId: string;
     readonly userId: string;
 };
@@ -25,6 +26,20 @@ function parseBearerToken(authorizationHeader: string): string {
     return token;
 }
 
+function getExpiresAtFromPayload(payload: { readonly exp?: number }): Date | undefined {
+    if (typeof payload.exp !== 'number' || !Number.isFinite(payload.exp)) {
+        return undefined;
+    }
+
+    const expiresAt = new Date(payload.exp * 1000);
+
+    if (Number.isNaN(expiresAt.getTime())) {
+        return undefined;
+    }
+
+    return expiresAt;
+}
+
 export async function authMiddleware(req: Request, _res: Response, next: NextFunction): Promise<void> {
     const authorizationHeader = req.header('authorization');
 
@@ -38,6 +53,7 @@ export async function authMiddleware(req: Request, _res: Response, next: NextFun
         const payload = await verifyAuthToken(token);
 
         req.authenticatedUser = {
+            expiresAt: getExpiresAtFromPayload(payload),
             tokenId: payload.jti,
             userId: payload.sub,
         };

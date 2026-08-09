@@ -161,7 +161,7 @@ export async function login(input: AuthCredentials): Promise<AuthResult> {
     }
 }
 
-export async function logout(userId: string, tokenId: string): Promise<{ readonly userId: string }> {
+export async function logout(userId: string, tokenId: string, expiresAt?: Date): Promise<{ readonly userId: string }> {
     try {
         const user = await User.findById(userId);
 
@@ -169,10 +169,14 @@ export async function logout(userId: string, tokenId: string): Promise<{ readonl
             throw new ApiError('Authenticated user not found', 401);
         }
 
+        if (expiresAt === undefined || !(expiresAt instanceof Date) || Number.isNaN(expiresAt.getTime())) {
+            throw new ApiError('Authentication token has no valid expiration', 401);
+        }
+
         const existingRevocation = await TokenRevocation.findOne({ jti: tokenId }).select('_id').lean();
 
         if (existingRevocation === null) {
-            await TokenRevocation.create({ jti: tokenId, userId });
+            await TokenRevocation.create({ expiresAt, jti: tokenId, userId });
         }
 
         logger.info({ userId }, 'User logged out successfully');
