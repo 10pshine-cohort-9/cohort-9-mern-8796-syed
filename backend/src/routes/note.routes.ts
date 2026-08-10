@@ -10,7 +10,7 @@ router.use(authMiddleware);
 router.post('/', createNoteController);
 router.get('/', listNotesController);
 router.get('/:id', getNoteController);
-router.patch('/:id', updateNoteController);
+router.put('/:id', updateNoteController);
 router.delete('/:id', deleteNoteController);
 
 export default router;

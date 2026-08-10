@@ -36,15 +36,11 @@ const EXAMPLE_JWT_SECRETS = new Set([
 ]);
 
 function parseNodeEnv(value: string | undefined): NodeEnvironment {
-    if (value === undefined) {
-        return 'development';
+    if (value === undefined || value.trim() === '') {
+        throw new Error('NODE_ENV is required');
     }
 
     const normalizedValue = value.trim();
-
-    if (normalizedValue === '') {
-        throw new Error('NODE_ENV is required');
-    }
 
     switch (normalizedValue) {
         case 'development':

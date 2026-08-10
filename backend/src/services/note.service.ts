@@ -56,6 +56,12 @@ const DEFAULT_SORT_ORDER = 'desc';
 type AllowedSortField = (typeof ALLOWED_SORT_FIELDS)[number];
 type SortDirection = 1 | -1;
 
+function assertString(value: unknown, fieldName: string): asserts value is string {
+    if (typeof value !== 'string') {
+        throw new ApiError(`${fieldName} is required`, 400);
+    }
+}
+
 function validateAuthenticatedUserId(userId: string): void {
     if (!isValidObjectId(userId)) {
         throw new ApiError('Authentication required', 401);
@@ -68,7 +74,9 @@ function validateNoteId(noteId: string): void {
     }
 }
 
-function normalizeTitle(title: string): string {
+function normalizeTitle(title: unknown): string {
+    assertString(title, 'Title');
+
     const normalizedTitle = title.trim();
 
     if (normalizedTitle.length === 0) {
@@ -82,7 +90,9 @@ function normalizeTitle(title: string): string {
     return normalizedTitle;
 }
 
-function normalizeContent(content: string): string {
+function normalizeContent(content: unknown): string {
+    assertString(content, 'Content');
+
     if (content.trim().length === 0) {
         throw new ApiError('Content is required', 400);
     }
@@ -99,7 +109,11 @@ function parsePositiveInteger(value: string | number | undefined, fieldName: str
         return defaultValue;
     }
 
-    const numericValue = typeof value === 'number' ? value : Number.parseInt(value, 10);
+    const numericValue = typeof value === 'number' ? value : Number(value.trim());
+
+    if (typeof value === 'string' && !/^[0-9]+$/.test(value.trim())) {
+        throw new ApiError(`${fieldName} must be a positive integer`, 400);
+    }
 
     if (!Number.isInteger(numericValue) || numericValue <= 0) {
         throw new ApiError(`${fieldName} must be a positive integer`, 400);

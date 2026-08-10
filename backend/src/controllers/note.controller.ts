@@ -31,11 +31,15 @@ const createNoteHandler: RequestHandler<unknown, unknown, CreateNoteRequestBody>
         throw new ApiError('Authentication required', 401);
     }
 
-    const note = await createNote(userId, req.body);
+    try {
+        const note = await createNote(userId, req.body);
 
-    return sendSuccess(res, 201, 'Note created successfully', {
-        note,
-    });
+        return sendSuccess(res, 201, 'Note created successfully', {
+            note,
+        });
+    } catch (error: unknown) {
+        throw error;
+    }
 };
 
 const listNotesHandler: RequestHandler<unknown, unknown, unknown, NotesListQuery> = async (req, res) => {
@@ -45,15 +49,19 @@ const listNotesHandler: RequestHandler<unknown, unknown, unknown, NotesListQuery
         throw new ApiError('Authentication required', 401);
     }
 
-    const result = await getNotes(userId, req.query);
+    try {
+        const result = await getNotes(userId, req.query);
 
-    return sendSuccess(res, 200, 'Notes retrieved successfully', {
-        limit: result.limit,
-        notes: result.notes,
-        page: result.page,
-        total: result.total,
-        totalPages: result.totalPages,
-    });
+        return sendSuccess(res, 200, 'Notes retrieved successfully', {
+            limit: result.limit,
+            notes: result.notes,
+            page: result.page,
+            total: result.total,
+            totalPages: result.totalPages,
+        });
+    } catch (error: unknown) {
+        throw error;
+    }
 };
 
 const getNoteHandler: RequestHandler<NoteParams> = async (req, res) => {
@@ -63,11 +71,15 @@ const getNoteHandler: RequestHandler<NoteParams> = async (req, res) => {
         throw new ApiError('Authentication required', 401);
     }
 
-    const note = await getNoteById(userId, req.params.id);
+    try {
+        const note = await getNoteById(userId, req.params.id);
 
-    return sendSuccess(res, 200, 'Note retrieved successfully', {
-        note,
-    });
+        return sendSuccess(res, 200, 'Note retrieved successfully', {
+            note,
+        });
+    } catch (error: unknown) {
+        throw error;
+    }
 };
 
 const updateNoteHandler: RequestHandler<NoteParams, unknown, UpdateNoteRequestBody> = async (req, res) => {
@@ -77,11 +89,15 @@ const updateNoteHandler: RequestHandler<NoteParams, unknown, UpdateNoteRequestBo
         throw new ApiError('Authentication required', 401);
     }
 
-    const note = await updateNote(userId, req.params.id, req.body);
+    try {
+        const note = await updateNote(userId, req.params.id, req.body);
 
-    return sendSuccess(res, 200, 'Note updated successfully', {
-        note,
-    });
+        return sendSuccess(res, 200, 'Note updated successfully', {
+            note,
+        });
+    } catch (error: unknown) {
+        throw error;
+    }
 };
 
 const deleteNoteHandler: RequestHandler<NoteParams> = async (req, res) => {
@@ -91,9 +107,13 @@ const deleteNoteHandler: RequestHandler<NoteParams> = async (req, res) => {
         throw new ApiError('Authentication required', 401);
     }
 
-    const result = await deleteNote(userId, req.params.id);
+    try {
+        const result = await deleteNote(userId, req.params.id);
 
-    return sendSuccess(res, 200, 'Note deleted successfully', result);
+        return sendSuccess(res, 200, 'Note deleted successfully', result);
+    } catch (error: unknown) {
+        throw error;
+    }
 };
 
 export const createNoteController = asyncHandler(createNoteHandler);
