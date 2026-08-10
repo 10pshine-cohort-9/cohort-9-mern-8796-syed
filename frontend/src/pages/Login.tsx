@@ -1,0 +1,135 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export const Login: React.FC = () => {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validateForm = () => {
+    const newErrors: { email?: string; password?: string } = {};
+
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!EMAIL_REGEX.test(email.trim())) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    if (!password) {
+      newErrors.password = 'Password is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setServerError(null);
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await login({
+        email: email.trim(),
+        password,
+      });
+      navigate('/', { replace: true });
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setServerError(err.message);
+      } else {
+        setServerError('An unexpected error occurred during login.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="auth-page-container">
+      <div className="auth-card">
+        <div className="auth-card-header">
+          <h1 className="auth-card-title">Welcome Back</h1>
+          <p className="auth-card-subtitle">Sign in to access your saved notes</p>
+        </div>
+
+        {serverError && (
+          <div className="alert-banner alert-banner-danger" role="alert">
+            <span>⚠️</span>
+            <span>{serverError}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="form-group">
+            <label className="form-label" htmlFor="email">
+              Email Address
+            </label>
+            <input
+              id="email"
+              type="email"
+              className={`form-input ${errors.email ? 'is-invalid' : ''}`}
+              placeholder="john@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isSubmitting}
+            />
+            {errors.email && <div className="field-error">{errors.email}</div>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="password">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              className={`form-input ${errors.password ? 'is-invalid' : ''}`}
+              placeholder="Your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isSubmitting}
+            />
+            {errors.password && <div className="field-error">{errors.password}</div>}
+          </div>
+
+          <button
+            type="submit"
+            className="btn btn-primary btn-block"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <div className="spinner spinner-sm"></div>
+                <span>Signing In...</span>
+              </>
+            ) : (
+              'Sign In'
+            )}
+          </button>
+        </form>
+
+        <p className="auth-footer-text">
+          Don't have an account?{' '}
+          <Link to="/signup" className="auth-link">
+            Sign Up
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
+};
