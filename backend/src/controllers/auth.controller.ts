@@ -16,14 +16,60 @@ type LoginRequestBody = {
     readonly password: string;
 };
 
-const registerHandler: RequestHandler<unknown, unknown, RegisterRequestBody> = async (req, res) => {
-    const result = await register(req.body);
+function isObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function validateRegisterPayload(body: unknown): RegisterRequestBody {
+    if (!isObject(body)) {
+        throw new ApiError('Invalid request body', 400);
+    }
+
+    const { email, name, password } = body;
+
+    if (typeof name !== 'string') {
+        throw new ApiError('Invalid or missing name', 400);
+    }
+
+    if (typeof email !== 'string') {
+        throw new ApiError('Invalid or missing email', 400);
+    }
+
+    if (typeof password !== 'string') {
+        throw new ApiError('Invalid or missing password', 400);
+    }
+
+    return { email, name, password };
+}
+
+function validateLoginPayload(body: unknown): LoginRequestBody {
+    if (!isObject(body)) {
+        throw new ApiError('Invalid request body', 400);
+    }
+
+    const { email, password } = body;
+
+    if (typeof email !== 'string') {
+        throw new ApiError('Invalid or missing email', 400);
+    }
+
+    if (typeof password !== 'string') {
+        throw new ApiError('Invalid or missing password', 400);
+    }
+
+    return { email, password };
+}
+
+const registerHandler: RequestHandler = async (req, res) => {
+    const payload = validateRegisterPayload(req.body);
+    const result = await register(payload);
 
     return sendSuccess(res, 201, 'Registration successful', result);
 };
 
-const loginHandler: RequestHandler<unknown, unknown, LoginRequestBody> = async (req, res) => {
-    const result = await login(req.body);
+const loginHandler: RequestHandler = async (req, res) => {
+    const payload = validateLoginPayload(req.body);
+    const result = await login(payload);
 
     return sendSuccess(res, 200, 'Login successful', result);
 };
