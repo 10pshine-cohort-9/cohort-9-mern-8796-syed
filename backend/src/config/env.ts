@@ -17,6 +17,7 @@ export const LOG_LEVELS = [
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
 export type AppEnvironment = {
+    readonly jwtSecret: string;
     readonly logLevel: LogLevel;
     readonly mongoUri: string;
     readonly nodeEnv: NodeEnvironment;
@@ -25,23 +26,31 @@ export type AppEnvironment = {
 
 const DEFAULT_LOG_LEVEL = 'info';
 const DEFAULT_PORT = 5000;
+const DEVELOPMENT_JWT_SECRET = 'development-jwt-secret';
 const DEVELOPMENT_MONGO_URI = 'mongodb://127.0.0.1:27017/notes-app';
-const VALID_NODE_ENVS: ReadonlySet<NodeEnvironment> = new Set([
-    'development',
-    'production',
-    'test',
+const EXAMPLE_JWT_SECRETS = new Set([
+    'development-jwt-secret',
+    'change-me-in-development',
+    'jwt-secret',
+    'secret',
 ]);
 
 function parseNodeEnv(value: string | undefined): NodeEnvironment {
-    if (value === undefined || value.trim() === '') {
+    if (value === undefined) {
         return 'development';
     }
 
-    switch (value) {
+    const normalizedValue = value.trim();
+
+    if (normalizedValue === '') {
+        throw new Error('NODE_ENV is required');
+    }
+
+    switch (normalizedValue) {
         case 'development':
         case 'production':
         case 'test':
-            return value;
+            return normalizedValue;
         default:
             throw new Error(`Invalid NODE_ENV value: ${value}`);
     }
@@ -98,9 +107,30 @@ function parseMongoUri(value: string | undefined, nodeEnv: NodeEnvironment): str
     throw new Error('MONGODB_URI is required outside development');
 }
 
+function parseJwtSecret(value: string | undefined, nodeEnv: NodeEnvironment): string {
+    if (value !== undefined && value.trim() !== '') {
+        const normalizedValue = value.trim();
+
+        if (nodeEnv !== 'development') {
+            if (EXAMPLE_JWT_SECRETS.has(normalizedValue.toLowerCase()) || normalizedValue.length < 32) {
+                throw new Error('JWT_SECRET must be configured with a strong secret outside development');
+            }
+        }
+
+        return normalizedValue;
+    }
+
+    if (nodeEnv === 'development') {
+        return DEVELOPMENT_JWT_SECRET;
+    }
+
+    throw new Error('JWT_SECRET is required outside development');
+}
+
 const nodeEnv = parseNodeEnv(process.env.NODE_ENV);
 
 const env: AppEnvironment = {
+    jwtSecret: parseJwtSecret(process.env.JWT_SECRET, nodeEnv),
     logLevel: parseLogLevel(process.env.LOG_LEVEL),
     mongoUri: parseMongoUri(process.env.MONGODB_URI, nodeEnv),
     nodeEnv,
