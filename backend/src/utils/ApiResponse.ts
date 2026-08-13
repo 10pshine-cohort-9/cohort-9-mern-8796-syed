@@ -18,7 +18,7 @@ export function sendSuccess<TData>(
     statusCode: number,
     message: string,
     data?: TData,
-): Response {
+): Response<SuccessApiResponse<TData>> {
     const payload: SuccessApiResponse<TData> =
         data === undefined
             ? {
@@ -34,7 +34,7 @@ export function sendSuccess<TData>(
     return res.status(statusCode).json(payload);
 }
 
-export function sendError(res: Response, statusCode: number, message: string): Response {
+export function sendError(res: Response, statusCode: number, message: string): Response<ErrorApiResponse> {
     const payload: ErrorApiResponse = {
         message,
         success: false,

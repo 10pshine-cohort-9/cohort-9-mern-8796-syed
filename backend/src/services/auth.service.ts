@@ -23,17 +23,27 @@ export type AuthResult = {
 const BCRYPT_SALT_ROUNDS = 12;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function assertString(value: unknown, fieldName: string): asserts value is string {
+    if (typeof value !== 'string') {
+        throw new ApiError(`${fieldName} is required`, 400);
+    }
+}
+
 function normalizeEmail(email: string): string {
     return email.trim().toLowerCase();
 }
 
-function validateEmail(email: string): void {
+function validateEmail(email: unknown): void {
+    assertString(email, 'Email');
+
     if (!EMAIL_PATTERN.test(email)) {
         throw new ApiError('Invalid email address', 400);
     }
 }
 
-function validatePassword(password: string): void {
+function validatePassword(password: unknown): void {
+    assertString(password, 'Password');
+
     if (password.trim().length === 0) {
         throw new ApiError('Password is required', 400);
     }
@@ -43,7 +53,9 @@ function validatePassword(password: string): void {
     }
 }
 
-function validateName(name: string): string {
+function validateName(name: unknown): string {
+    assertString(name, 'Name');
+
     const normalizedName = name.trim();
 
     if (normalizedName.length === 0) {
@@ -74,9 +86,9 @@ function isDuplicateKeyError(error: unknown): boolean {
 export async function register(input: RegistrationInput): Promise<AuthResult> {
     try {
         const name = validateName(input.name);
+        validateEmail(input.email);
         const email = normalizeEmail(input.email);
 
-        validateEmail(email);
         validatePassword(input.password);
 
         if (bcrypt.truncates(input.password)) {
@@ -124,9 +136,9 @@ export async function register(input: RegistrationInput): Promise<AuthResult> {
 
 export async function login(input: AuthCredentials): Promise<AuthResult> {
     try {
+        validateEmail(input.email);
         const email = normalizeEmail(input.email);
 
-        validateEmail(email);
         validatePassword(input.password);
 
         const user = await User.findOne({ email }).select('+password');
@@ -173,11 +185,21 @@ export async function logout(userId: string, tokenId: string, expiresAt?: Date):
             throw new ApiError('Authentication token has no valid expiration', 401);
         }
 
-        const existingRevocation = await TokenRevocation.findOne({ jti: tokenId }).select('_id').lean();
-
-        if (existingRevocation === null) {
-            await TokenRevocation.create({ expiresAt, jti: tokenId, userId });
-        }
+        await TokenRevocation.findOneAndUpdate(
+            { jti: tokenId },
+            {
+                $setOnInsert: {
+                    expiresAt,
+                    jti: tokenId,
+                    userId,
+                },
+            },
+            {
+                upsert: true,
+                new: false,
+                setDefaultsOnInsert: true,
+            },
+        ).exec();
 
         logger.info({ userId }, 'User logged out successfully');
 

@@ -1,9 +1,9 @@
 import type { RequestHandler } from 'express';
 
-import { asyncHandler } from '../utils/asyncHandler';
-import { sendSuccess } from '../utils/ApiResponse';
 import { ApiError } from '../utils/ApiError';
 import { getAuthenticatedUser, login, logout, register } from '../services/auth.service';
+import { sendSuccess } from '../utils/ApiResponse';
+import { asyncHandler } from '../utils/asyncHandler';
 
 type RegisterRequestBody = {
     readonly email: string;
@@ -60,18 +60,26 @@ function validateLoginPayload(body: unknown): LoginRequestBody {
     return { email, password };
 }
 
-const registerHandler: RequestHandler = async (req, res) => {
-    const payload = validateRegisterPayload(req.body);
-    const result = await register(payload);
+const registerHandler: RequestHandler<unknown, unknown, RegisterRequestBody> = async (req, res) => {
+    try {
+        const payload = validateRegisterPayload(req.body);
+        const result = await register(payload);
 
-    return sendSuccess(res, 201, 'Registration successful', result);
+        return sendSuccess(res, 201, 'Registration successful', result);
+    } catch (error: unknown) {
+        throw error;
+    }
 };
 
-const loginHandler: RequestHandler = async (req, res) => {
-    const payload = validateLoginPayload(req.body);
-    const result = await login(payload);
+const loginHandler: RequestHandler<unknown, unknown, LoginRequestBody> = async (req, res) => {
+    try {
+        const payload = validateLoginPayload(req.body);
+        const result = await login(payload);
 
-    return sendSuccess(res, 200, 'Login successful', result);
+        return sendSuccess(res, 200, 'Login successful', result);
+    } catch (error: unknown) {
+        throw error;
+    }
 };
 
 const meHandler: RequestHandler = async (req, res) => {
@@ -81,11 +89,15 @@ const meHandler: RequestHandler = async (req, res) => {
         throw new ApiError('Authentication required', 401);
     }
 
-    const user = await getAuthenticatedUser(userId);
+    try {
+        const user = await getAuthenticatedUser(userId);
 
-    return sendSuccess(res, 200, 'Authenticated user retrieved successfully', {
-        user,
-    });
+        return sendSuccess(res, 200, 'Authenticated user retrieved successfully', {
+            user,
+        });
+    } catch (error: unknown) {
+        throw error;
+    }
 };
 
 const logoutHandler: RequestHandler = async (req, res) => {
@@ -97,9 +109,13 @@ const logoutHandler: RequestHandler = async (req, res) => {
         throw new ApiError('Authentication required', 401);
     }
 
-    const result = await logout(userId, tokenId, expiresAt);
+    try {
+        const result = await logout(userId, tokenId, expiresAt);
 
-    return sendSuccess(res, 200, 'Logout successful', result);
+        return sendSuccess(res, 200, 'Logout successful', result);
+    } catch (error: unknown) {
+        throw error;
+    }
 };
 
 export const registerUser = asyncHandler(registerHandler);
