@@ -6,12 +6,13 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="dashboard-placeholder">
-      <span className="placeholder-badge">✓ </span>
-      <h1 className="placeholder-title">Welcome to your Notes Workspace!</h1>
+      <span className="placeholder-badge">✓ Workspace Active</span>
+      <h1 className="placeholder-title">
+        Welcome{user?.name ? `, ${user.name}` : ''}!
+      </h1>
       <p className="placeholder-desc">
+        {user?.email ? `Logged in as ${user.email}. ` : ''}Your Notes App dashboard is ready.
       </p>
-
-
     </div>
   );
 };

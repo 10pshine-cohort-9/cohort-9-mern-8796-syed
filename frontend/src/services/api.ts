@@ -2,7 +2,7 @@ import { ApiResponse, AuthResult, LoginInput, RegisterInput, User } from '../typ
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
     super(message);
@@ -29,10 +29,18 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    throw new ApiError('Network error. Please check your internet connection or server availability.', 0);
+  }
 
   let data: ApiResponse<T>;
   try {

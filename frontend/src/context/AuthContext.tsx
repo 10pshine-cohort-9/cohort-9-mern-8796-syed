@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { authApi, setOnUnauthorizedCallback } from '../services/api';
+import { ApiError, authApi, setOnUnauthorizedCallback } from '../services/api';
 import { LoginInput, RegisterInput, User } from '../types';
 
 interface AuthContextType {
@@ -42,11 +42,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const response = await authApi.getMe();
         setUser(response.user);
         setToken(storedToken);
-      } catch {
-        // Token invalid or expired
-        localStorage.removeItem('token');
-        setToken(null);
-        setUser(null);
+      } catch (err: unknown) {
+        if (err instanceof ApiError && err.status === 401) {
+          localStorage.removeItem('token');
+          setToken(null);
+          setUser(null);
+        } else {
+          localStorage.removeItem('token');
+          setToken(null);
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -57,15 +62,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (input: LoginInput) => {
     const response = await authApi.login(input);
-    localStorage.setItem('token', response.token);
-    setToken(response.token);
+    if (response.token) {
+      localStorage.setItem('token', response.token);
+      setToken(response.token);
+    }
     setUser(response.user);
   };
 
   const register = async (input: RegisterInput) => {
     const response = await authApi.register(input);
-    localStorage.setItem('token', response.token);
-    setToken(response.token);
+    if (response.token) {
+      localStorage.setItem('token', response.token);
+      setToken(response.token);
+    }
     setUser(response.user);
   };
 
