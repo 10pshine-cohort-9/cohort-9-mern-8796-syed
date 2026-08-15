@@ -140,7 +140,7 @@ body {
   min-height: 100vh;
   padding: 1.5rem;
   background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.15), transparent 40%),
-              radial-gradient(circle at bottom left, rgba(168, 85, 247, 0.15), transparent 40%);
+    radial-gradient(circle at bottom left, rgba(168, 85, 247, 0.15), transparent 40%);
 }
 
 .auth-card {

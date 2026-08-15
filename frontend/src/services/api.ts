@@ -51,7 +51,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   if (!response.ok || !data.success) {
     const errorMessage = data.message || `Request failed with status ${response.status}`;
-    
+
     if (response.status === 401 && onUnauthorizedCallback) {
       onUnauthorizedCallback();
     }
