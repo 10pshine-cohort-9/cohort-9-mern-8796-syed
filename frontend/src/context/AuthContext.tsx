@@ -20,22 +20,22 @@ export interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
+  const [token, setToken] = useState<string | null>((): string | null => localStorage.getItem('token'));
   const [loading, setLoading] = useState<boolean>(true);
 
-  const handleUnauthorized = () => {
+  const handleUnauthorized = (): void => {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
   };
 
-  useEffect(() => {
+  useEffect((): (() => void) => {
     setOnUnauthorizedCallback(handleUnauthorized);
-    return () => setOnUnauthorizedCallback(null);
+    return (): void => setOnUnauthorizedCallback(null);
   }, []);
 
-  useEffect(() => {
-    const initializeAuth = async () => {
+  useEffect((): void => {
+    const initializeAuth = async (): Promise<void> => {
       const storedToken = localStorage.getItem('token');
       if (!storedToken) {
         setLoading(false);
@@ -48,13 +48,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setToken(storedToken);
       } catch (err: unknown) {
         if (err instanceof ApiError && err.status === 401) {
-          localStorage.removeItem('token');
-          setToken(null);
-          setUser(null);
-        } else {
-          localStorage.removeItem('token');
-          setToken(null);
-          setUser(null);
+          handleUnauthorized();
         }
       } finally {
         setLoading(false);
@@ -64,7 +58,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     initializeAuth();
   }, []);
 
-  const login = async (input: LoginInput) => {
+  const login = async (input: LoginInput): Promise<void> => {
     try {
       const response = await authApi.login(input);
       if (response.token) {
@@ -80,7 +74,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const register = async (input: RegisterInput) => {
+  const register = async (input: RegisterInput): Promise<void> => {
     try {
       const response = await authApi.register(input);
       if (response.token) {
@@ -96,7 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = async () => {
+  const logout = async (): Promise<void> => {
     try {
       await authApi.logout();
     } catch {

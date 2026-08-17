@@ -7,7 +7,7 @@ export const Layout: React.FC = () => {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
 
-  const handleLogout = async () => {
+  const handleLogout = async (): Promise<void> => {
     setLoggingOut(true);
     try {
       await logout();

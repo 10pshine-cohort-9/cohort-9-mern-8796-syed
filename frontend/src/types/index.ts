@@ -9,18 +9,30 @@ export interface AuthResult {
   user: User;
 }
 
-export interface SuccessApiResponse<T = unknown> {
+export interface DataSuccessApiResponse<T> {
   success: true;
   message: string;
-  data?: T;
+  data: T;
 }
+
+export interface NoContentSuccessApiResponse {
+  success: true;
+  message: string;
+  data?: never;
+}
+
+export type SuccessApiResponse<T = void> = T extends void
+  ? NoContentSuccessApiResponse
+  : DataSuccessApiResponse<T>;
 
 export interface ErrorApiResponse {
   success: false;
   message: string;
 }
 
-export type ApiResponse<T = unknown> = SuccessApiResponse<T> | ErrorApiResponse;
+export type ApiResponse<T = void> = SuccessApiResponse<T> | ErrorApiResponse;
+
+export type AuthApiResponse = DataSuccessApiResponse<AuthResult>;
 
 export interface RegisterInput {
   name: string;

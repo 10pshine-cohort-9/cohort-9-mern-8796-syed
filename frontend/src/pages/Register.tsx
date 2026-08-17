@@ -16,7 +16,7 @@ export const Register: React.FC = () => {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const validateForm = () => {
+  const validateForm = (): boolean => {
     const newErrors: { name?: string; email?: string; password?: string } = {};
 
     if (!name.trim()) {
@@ -39,7 +39,7 @@ export const Register: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     setServerError(null);
 
@@ -93,7 +93,7 @@ export const Register: React.FC = () => {
               className={`form-input ${errors.name ? 'is-invalid' : ''}`}
               placeholder="John Doe"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setName(e.target.value)}
               disabled={isSubmitting}
               aria-invalid={!!errors.name}
               aria-describedby={errors.name ? 'name-error' : undefined}
@@ -111,7 +111,7 @@ export const Register: React.FC = () => {
               className={`form-input ${errors.email ? 'is-invalid' : ''}`}
               placeholder="john@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setEmail(e.target.value)}
               disabled={isSubmitting}
               aria-invalid={!!errors.email}
               aria-describedby={errors.email ? 'email-error' : undefined}
@@ -129,7 +129,7 @@ export const Register: React.FC = () => {
               className={`form-input ${errors.password ? 'is-invalid' : ''}`}
               placeholder="At least 8 characters"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setPassword(e.target.value)}
               disabled={isSubmitting}
               aria-invalid={!!errors.password}
               aria-describedby={errors.password ? 'password-error' : undefined}
