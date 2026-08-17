@@ -87,8 +87,10 @@ export const Login: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isSubmitting}
+              aria-invalid={!!errors.email}
+              aria-describedby={errors.email ? 'email-error' : undefined}
             />
-            {errors.email && <div className="field-error">{errors.email}</div>}
+            {errors.email && <div id="email-error" className="field-error">{errors.email}</div>}
           </div>
 
           <div className="form-group">
@@ -103,8 +105,10 @@ export const Login: React.FC = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isSubmitting}
+              aria-invalid={!!errors.password}
+              aria-describedby={errors.password ? 'password-error' : undefined}
             />
-            {errors.password && <div className="field-error">{errors.password}</div>}
+            {errors.password && <div id="password-error" className="field-error">{errors.password}</div>}
           </div>
 
           <button

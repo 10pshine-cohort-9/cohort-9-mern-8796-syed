@@ -65,21 +65,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = async (input: LoginInput) => {
-    const response = await authApi.login(input);
-    if (response.token) {
-      localStorage.setItem('token', response.token);
-      setToken(response.token);
+    try {
+      const response = await authApi.login(input);
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+        setToken(response.token);
+      }
+      setUser(response.user);
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        throw err;
+      }
+      throw new ApiError('Authentication failed. Please try again.', 500);
     }
-    setUser(response.user);
   };
 
   const register = async (input: RegisterInput) => {
-    const response = await authApi.register(input);
-    if (response.token) {
-      localStorage.setItem('token', response.token);
-      setToken(response.token);
+    try {
+      const response = await authApi.register(input);
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+        setToken(response.token);
+      }
+      setUser(response.user);
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        throw err;
+      }
+      throw new ApiError('Registration failed. Please try again.', 500);
     }
-    setUser(response.user);
   };
 
   const logout = async () => {
