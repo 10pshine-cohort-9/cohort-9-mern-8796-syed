@@ -122,7 +122,10 @@ process.on('unhandledRejection', (reason: unknown) => {
         },
         'Unhandled rejection detected',
     );
-    void shutdown('unhandledRejection');
+    void shutdown('unhandledRejection').catch((error: unknown) => {
+        logger.error({ err: error }, 'Shutdown invocation failed');
+        process.exit(1);
+    });
 });
 
 process.on('uncaughtException', (error: Error) => {
@@ -133,7 +136,10 @@ process.on('uncaughtException', (error: Error) => {
         },
         'Uncaught exception detected',
     );
-    void shutdown('uncaughtException');
+    void shutdown('uncaughtException').catch((shutdownError: unknown) => {
+        logger.error({ err: shutdownError }, 'Shutdown invocation failed');
+        process.exit(1);
+    });
 });
 
 void startServer();

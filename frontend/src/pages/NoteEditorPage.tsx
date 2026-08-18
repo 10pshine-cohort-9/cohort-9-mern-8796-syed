@@ -18,9 +18,16 @@ export const NoteEditorPage: React.FC = () => {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isCurrent = true;
+
     if (!id) {
+      setInitialTitle('');
+      setInitialContent('');
+      setNoteError(null);
       setLoadingNote(false);
-      return;
+      return () => {
+        isCurrent = false;
+      };
     }
 
     const fetchNote = async (): Promise<void> => {
@@ -29,20 +36,32 @@ export const NoteEditorPage: React.FC = () => {
 
       try {
         const result = await notesApi.getById(id);
+        if (!isCurrent) {
+          return;
+        }
         setInitialTitle(result.note.title);
         setInitialContent(result.note.content);
       } catch (err: unknown) {
+        if (!isCurrent) {
+          return;
+        }
         if (err instanceof ApiError) {
           setNoteError(err.message);
         } else {
           setNoteError('Failed to load note details. Please try again.');
         }
       } finally {
-        setLoadingNote(false);
+        if (isCurrent) {
+          setLoadingNote(false);
+        }
       }
     };
 
-    fetchNote();
+    void fetchNote();
+
+    return () => {
+      isCurrent = false;
+    };
   }, [id]);
 
   const handleSubmit = async (data: CreateNoteInput): Promise<void> => {

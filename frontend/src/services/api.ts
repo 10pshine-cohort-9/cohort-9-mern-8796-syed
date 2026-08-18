@@ -109,7 +109,7 @@ export const authApi = {
 };
 
 export const notesApi = {
-  list: async (query?: NotesListQuery): Promise<NotesListResult> => {
+  list: (query?: NotesListQuery): Promise<NotesListResult> => {
     const params = new URLSearchParams();
     if (query?.search) params.append('search', query.search);
     if (query?.page) params.append('page', query.page.toString());
@@ -125,27 +125,27 @@ export const notesApi = {
     });
   },
 
-  getById: async (id: string): Promise<SingleNoteResult> => {
+  getById: (id: string): Promise<SingleNoteResult> => {
     return request<SingleNoteResult>(`/notes/${id}`, {
       method: 'GET',
     });
   },
 
-  create: async (input: CreateNoteInput): Promise<SingleNoteResult> => {
+  create: (input: CreateNoteInput): Promise<SingleNoteResult> => {
     return request<SingleNoteResult>('/notes', {
       method: 'POST',
       body: JSON.stringify(input),
     });
   },
 
-  update: async (id: string, input: UpdateNoteInput): Promise<SingleNoteResult> => {
+  update: (id: string, input: UpdateNoteInput): Promise<SingleNoteResult> => {
     return request<SingleNoteResult>(`/notes/${id}`, {
       method: 'PUT',
       body: JSON.stringify(input),
     });
   },
 
-  delete: async (id: string): Promise<DeleteNoteResult> => {
+  delete: (id: string): Promise<DeleteNoteResult> => {
     return request<DeleteNoteResult>(`/notes/${id}`, {
       method: 'DELETE',
     });
