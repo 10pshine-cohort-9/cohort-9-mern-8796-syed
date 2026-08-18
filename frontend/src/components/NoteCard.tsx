@@ -34,36 +34,23 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onDeleteRequest, isDel
     return text.trim().slice(0, 150) + (text.length > 150 ? '...' : '');
   };
 
-  const handleEditClick = (e: React.MouseEvent): void => {
-    e.stopPropagation();
-    navigate(`/notes/${noteId}/edit`);
-  };
-
-  const handleDeleteClick = (e: React.MouseEvent): void => {
-    e.stopPropagation();
-    onDeleteRequest(note);
-  };
-
-  const handleCardClick = (): void => {
+  const handleOpenNote = (): void => {
     navigate(`/notes/${noteId}/edit`);
   };
 
   return (
-    <div
-      className="note-card"
-      onClick={handleCardClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleCardClick();
-        }
-      }}
-      aria-label={`View note: ${note.title}`}
-    >
+    <div className="note-card">
       <div className="note-card-header">
-        <h3 className="note-card-title">{note.title}</h3>
+        <h3 className="note-card-title">
+          <button
+            type="button"
+            className="note-card-title-link"
+            onClick={handleOpenNote}
+            aria-label={`Open note: ${note.title}`}
+          >
+            {note.title}
+          </button>
+        </h3>
         <span className="note-card-date">{formatDate(note.updatedAt || note.createdAt)}</span>
       </div>
 
@@ -73,7 +60,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onDeleteRequest, isDel
         <button
           type="button"
           className="btn btn-secondary btn-sm"
-          onClick={handleEditClick}
+          onClick={handleOpenNote}
           aria-label={`Edit note ${note.title}`}
         >
           ✏️ Edit
@@ -82,9 +69,10 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onDeleteRequest, isDel
         <button
           type="button"
           className="btn btn-danger-outline btn-sm"
-          onClick={handleDeleteClick}
+          onClick={() => onDeleteRequest(note)}
           disabled={isDeleting}
           aria-label={`Delete note ${note.title}`}
+          data-note-id={noteId}
         >
           {isDeleting ? 'Deleting...' : '🗑️ Delete'}
         </button>

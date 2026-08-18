@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import DOMPurify from 'dompurify';
 import { CreateNoteInput } from '../types';
 
 interface NoteEditorProps {
@@ -24,6 +25,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const [content, setContent] = useState(initialContent);
   const [fieldErrors, setFieldErrors] = useState<{ title?: string; content?: string }>({});
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write');
+  const [localSubmitError, setLocalSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     setTitle(initialTitle);
@@ -49,14 +51,30 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
+    setLocalSubmitError(null);
 
     if (!validate()) {
       return;
     }
 
-    await onSubmit({
-      title: title.trim(),
-      content: content.trim(),
+    try {
+      await onSubmit({
+        title: title.trim(),
+        content: content.trim(),
+      });
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setLocalSubmitError(err.message);
+      } else {
+        setLocalSubmitError('An error occurred while saving the note. Please try again.');
+      }
+    }
+  };
+
+  const sanitizeHtml = (rawHtml: string): string => {
+    return DOMPurify.sanitize(rawHtml, {
+      ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'h3', 'ul', 'ol', 'li', 'p', 'code', 'pre', 'br', 'span'],
+      ALLOWED_ATTR: [],
     });
   };
 
@@ -78,6 +96,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       textarea.setSelectionRange(start + prefix.length, end + prefix.length);
     }, 0);
   };
+
+  const activeError = error || localSubmitError;
 
   return (
     <div className="note-editor-container">
@@ -105,9 +125,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         </div>
       </div>
 
-      {error && (
+      {activeError && (
         <div className="alert-banner alert-banner-danger" role="alert">
-          <span>⚠️ {error}</span>
+          <span>⚠️ {activeError}</span>
         </div>
       )}
 
@@ -223,7 +243,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             <span className="form-label">Content Preview</span>
             <div className="note-preview-box">
               {content.trim() ? (
-                <div dangerouslySetInnerHTML={{ __html: content }} />
+                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(content) }} />
               ) : (
                 <em className="text-muted">Nothing to preview yet.</em>
               )}

@@ -56,6 +56,12 @@ const DEFAULT_SORT_ORDER = 'desc';
 type AllowedSortField = (typeof ALLOWED_SORT_FIELDS)[number];
 type SortDirection = 1 | -1;
 
+function assertPlainObject(value: unknown, paramName = 'Request body'): asserts value is Record<string, unknown> {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        throw new ApiError(`${paramName} must be an object`, 400);
+    }
+}
+
 function assertString(value: unknown, fieldName: string): asserts value is string {
     if (typeof value !== 'string') {
         throw new ApiError(`${fieldName} is required`, 400);
@@ -210,6 +216,7 @@ function toNoteQueryError(operation: string, error: unknown, context: Record<str
 export async function createNote(userId: string, input: CreateNoteInput): Promise<NoteDocument> {
     try {
         validateAuthenticatedUserId(userId);
+        assertPlainObject(input);
 
         const title = normalizeTitle(input.title);
         const content = normalizeContent(input.content);
@@ -280,6 +287,7 @@ export async function updateNote(userId: string, noteId: string, input: UpdateNo
     try {
         validateAuthenticatedUserId(userId);
         validateNoteId(noteId);
+        assertPlainObject(input);
 
         const updates: { content?: string; title?: string } = {};
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError, notesApi } from '../services/api';
 import { Note } from '../types';
@@ -13,10 +13,15 @@ export const Dashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
 
-  // Delete modal state
+  // Stale request tracking
+  const requestIdRef = useRef<number>(0);
+
+  // Delete modal state & focus management
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const lastFocusedElementRef = useRef<HTMLElement | null>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Debounce search input
   useEffect(() => {
@@ -27,25 +32,61 @@ export const Dashboard: React.FC = () => {
   }, [searchQuery]);
 
   const loadNotes = useCallback(async (search?: string): Promise<void> => {
+    const currentRequestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
+
     try {
       const result = await notesApi.list({ search: search?.trim() || undefined });
-      setNotes(result.notes);
+      if (currentRequestId === requestIdRef.current) {
+        setNotes(result.notes);
+      }
     } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Failed to load notes. Please check your internet connection and try again.');
+      if (currentRequestId === requestIdRef.current) {
+        if (err instanceof ApiError) {
+          setError(err.message);
+        } else {
+          setError('Failed to load notes. Please check your internet connection and try again.');
+        }
       }
     } finally {
-      setLoading(false);
+      if (currentRequestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     loadNotes(debouncedSearch);
   }, [debouncedSearch, loadNotes]);
+
+  // Modal open/close focus management & Escape key listener
+  useEffect(() => {
+    if (!noteToDelete) return;
+
+    // Save element that had focus before opening modal
+    lastFocusedElementRef.current = document.activeElement as HTMLElement | null;
+
+    // Focus cancel button inside modal
+    const focusTimer = setTimeout(() => {
+      cancelButtonRef.current?.focus();
+    }, 50);
+
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        setNoteToDelete(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      clearTimeout(focusTimer);
+      window.removeEventListener('keydown', handleKeyDown);
+      // Restore focus on close
+      lastFocusedElementRef.current?.focus();
+    };
+  }, [noteToDelete]);
 
   const handleCreateNote = (): void => {
     navigate('/notes/new');
@@ -151,14 +192,20 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Accessible Delete Confirmation Dialog */}
       {noteToDelete && (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-modal-title"
+          aria-describedby="delete-modal-desc"
+        >
           <div className="modal-card">
             <div className="modal-header">
               <h3 id="delete-modal-title">Confirm Delete</h3>
             </div>
-            <div className="modal-body">
+            <div className="modal-body" id="delete-modal-desc">
               {deleteError && (
                 <div className="alert-banner alert-banner-danger" role="alert">
                   <span>⚠️ {deleteError}</span>
@@ -171,6 +218,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div className="modal-footer">
               <button
+                ref={cancelButtonRef}
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => setNoteToDelete(null)}

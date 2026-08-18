@@ -22,6 +22,7 @@ export type AuthResult = {
 
 const BCRYPT_SALT_ROUNDS = 12;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('dummy_password_never_matches_123', BCRYPT_SALT_ROUNDS);
 
 function assertString(value: unknown, fieldName: string): asserts value is string {
     if (typeof value !== 'string') {
@@ -144,6 +145,7 @@ export async function login(input: AuthCredentials): Promise<AuthResult> {
         const user = await User.findOne({ email }).select('+password');
 
         if (user === null) {
+            await bcrypt.compare(input.password, DUMMY_PASSWORD_HASH);
             logger.warn({ reason: 'invalid_credentials' }, 'Authentication failed');
             throw new ApiError('Invalid email or password', 401);
         }
@@ -185,21 +187,29 @@ export async function logout(userId: string, tokenId: string, expiresAt?: Date):
             throw new ApiError('Authentication token has no valid expiration', 401);
         }
 
-        await TokenRevocation.findOneAndUpdate(
-            { jti: tokenId },
-            {
-                $setOnInsert: {
-                    expiresAt,
-                    jti: tokenId,
-                    userId,
+        try {
+            await TokenRevocation.findOneAndUpdate(
+                { jti: tokenId },
+                {
+                    $setOnInsert: {
+                        expiresAt,
+                        jti: tokenId,
+                        userId,
+                    },
                 },
-            },
-            {
-                upsert: true,
-                new: false,
-                setDefaultsOnInsert: true,
-            },
-        ).exec();
+                {
+                    upsert: true,
+                    new: false,
+                    setDefaultsOnInsert: true,
+                },
+            ).exec();
+        } catch (error: unknown) {
+            if (isDuplicateKeyError(error)) {
+                logger.info({ userId, tokenId }, 'Token already revoked');
+            } else {
+                throw error;
+            }
+        }
 
         logger.info({ userId }, 'User logged out successfully');
 

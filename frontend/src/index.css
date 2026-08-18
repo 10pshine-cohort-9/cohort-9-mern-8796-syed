@@ -490,7 +490,22 @@ body {
   font-weight: 700;
   color: var(--text-main);
   line-height: 1.3;
-  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.note-card-title-link {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+.note-card-title-link:hover {
+  color: var(--primary);
+  text-decoration: underline;
 }
 
 .note-card-date {
@@ -504,7 +519,7 @@ body {
   color: var(--text-muted);
   line-height: 1.5;
   flex: 1;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .note-card-actions {

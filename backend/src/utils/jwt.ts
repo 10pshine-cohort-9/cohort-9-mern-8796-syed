@@ -27,7 +27,12 @@ export function signAuthToken(userId: string): string {
 }
 
 export async function verifyAuthToken(token: string): Promise<AuthTokenPayload> {
-    const payload = jwt.verify(token, env.jwtSecret);
+    let payload: string | JwtPayload;
+    try {
+        payload = jwt.verify(token, env.jwtSecret);
+    } catch {
+        throw new ApiError('Invalid or expired authentication token', 401);
+    }
 
     if (!isAuthTokenPayload(payload)) {
         throw new ApiError('Invalid authentication token payload', 401);
