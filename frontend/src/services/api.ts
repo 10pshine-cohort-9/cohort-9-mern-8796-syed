@@ -42,12 +42,18 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     throw new ApiError('Network error. Please check your internet connection or server availability.', 0);
   }
 
-  let data: ApiResponse<T>;
+  let parsed: unknown;
   try {
-    data = await response.json();
+    parsed = await response.json();
   } catch {
     throw new ApiError('An unexpected server response was received.', response.status);
   }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new ApiError('An unexpected server response was received.', response.status);
+  }
+
+  const data = parsed as ApiResponse<T>;
 
   if (!response.ok || !data.success) {
     const errorMessage = data.message || `Request failed with status ${response.status}`;
