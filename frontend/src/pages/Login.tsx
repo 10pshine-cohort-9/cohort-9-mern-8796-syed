@@ -74,6 +74,13 @@ export const Login: React.FC = () => {
           </div>
         )}
 
+        {Object.keys(errors).length > 0 && (
+          <div className="alert-banner alert-banner-danger" role="alert">
+            <span>⚠️</span>
+            <span>Please correct the errors below.</span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} noValidate>
           <div className="form-group">
             <label className="form-label" htmlFor="email">
