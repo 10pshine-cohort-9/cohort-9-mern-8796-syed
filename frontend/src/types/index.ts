@@ -46,13 +46,13 @@ export interface LoginInput {
 }
 
 export interface Note {
-  _id?: string;
+  _id: string;
   id?: string;
   title: string;
   content: string;
-  userId?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface NotesListResult {
@@ -61,6 +61,14 @@ export interface NotesListResult {
   page: number;
   totalPages: number;
   limit: number;
+}
+
+export interface NotesListQuery {
+  search?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }
 
 export interface CreateNoteInput {
@@ -72,4 +80,14 @@ export interface UpdateNoteInput {
   title?: string;
   content?: string;
 }
+
+export interface SingleNoteResult {
+  note: Note;
+}
+
+export interface DeleteNoteResult {
+  deleted: boolean;
+  noteId: string;
+}
+
 

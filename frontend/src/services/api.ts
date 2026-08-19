@@ -1,4 +1,16 @@
-import { ApiResponse, AuthResult, LoginInput, RegisterInput, User } from '../types';
+import {
+  ApiResponse,
+  AuthResult,
+  CreateNoteInput,
+  DeleteNoteResult,
+  LoginInput,
+  NotesListQuery,
+  NotesListResult,
+  RegisterInput,
+  SingleNoteResult,
+  UpdateNoteInput,
+  User,
+} from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -95,3 +107,48 @@ export const authApi = {
     });
   },
 };
+
+export const notesApi = {
+  list: (query?: NotesListQuery): Promise<NotesListResult> => {
+    const params = new URLSearchParams();
+    if (query?.search) params.append('search', query.search);
+    if (query?.page) params.append('page', query.page.toString());
+    if (query?.limit) params.append('limit', query.limit.toString());
+    if (query?.sortBy) params.append('sortBy', query.sortBy);
+    if (query?.sortOrder) params.append('sortOrder', query.sortOrder);
+
+    const queryString = params.toString();
+    const endpoint = queryString ? `/notes?${queryString}` : '/notes';
+
+    return request<NotesListResult>(endpoint, {
+      method: 'GET',
+    });
+  },
+
+  getById: (id: string): Promise<SingleNoteResult> => {
+    return request<SingleNoteResult>(`/notes/${id}`, {
+      method: 'GET',
+    });
+  },
+
+  create: (input: CreateNoteInput): Promise<SingleNoteResult> => {
+    return request<SingleNoteResult>('/notes', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  update: (id: string, input: UpdateNoteInput): Promise<SingleNoteResult> => {
+    return request<SingleNoteResult>(`/notes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+  },
+
+  delete: (id: string): Promise<DeleteNoteResult> => {
+    return request<DeleteNoteResult>(`/notes/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+

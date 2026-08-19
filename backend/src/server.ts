@@ -77,7 +77,7 @@ async function closeHttpServer(): Promise<void> {
     }
 }
 
-async function shutdown(signal: NodeJS.Signals): Promise<void> {
+async function shutdown(signal: string): Promise<void> {
     if (shutdownPromise !== undefined) {
         return shutdownPromise;
     }
@@ -89,7 +89,7 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
             await closeHttpServer();
             await disconnectDatabase();
             logger.info({ signal }, 'Shutdown completed');
-            process.exit(0);
+            process.exit(signal === 'uncaughtException' || signal === 'unhandledRejection' ? 1 : 0);
         } catch (error: unknown) {
             logger.error(
                 {
@@ -112,6 +112,34 @@ process.on('SIGINT', () => {
 
 process.on('SIGTERM', () => {
     void shutdown('SIGTERM');
+});
+
+process.on('unhandledRejection', (reason: unknown) => {
+    logger.error(
+        {
+            errorMessage: reason instanceof Error ? reason.message : String(reason),
+            errorName: reason instanceof Error ? reason.name : 'UnhandledRejection',
+        },
+        'Unhandled rejection detected',
+    );
+    void shutdown('unhandledRejection').catch((error: unknown) => {
+        logger.error({ err: error }, 'Shutdown invocation failed');
+        process.exit(1);
+    });
+});
+
+process.on('uncaughtException', (error: Error) => {
+    logger.error(
+        {
+            errorMessage: error.message,
+            errorName: error.name,
+        },
+        'Uncaught exception detected',
+    );
+    void shutdown('uncaughtException').catch((shutdownError: unknown) => {
+        logger.error({ err: shutdownError }, 'Shutdown invocation failed');
+        process.exit(1);
+    });
 });
 
 void startServer();
