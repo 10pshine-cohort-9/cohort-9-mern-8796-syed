@@ -6,7 +6,12 @@ import { notesApi } from '../../services/api';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
+  let actual;
+  try {
+    actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  } catch (error) {
+    throw new Error(`Failed to import actual react-router-dom module in test setup: ${error instanceof Error ? error.message : String(error)}`);
+  }
   return {
     ...actual,
     useNavigate: () => mockNavigate,
@@ -70,8 +75,12 @@ describe('Dashboard Component', () => {
 
     expect(screen.getByText('Loading your notes...')).toBeInTheDocument();
 
-    expect(await screen.findByText('First Note Title')).toBeInTheDocument();
-    expect(screen.getByText('Second Note Title')).toBeInTheDocument();
+    try {
+      expect(await screen.findByText('First Note Title')).toBeInTheDocument();
+      expect(screen.getByText('Second Note Title')).toBeInTheDocument();
+    } catch (error) {
+      throw new Error(`Dashboard loading notes test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('displays empty state when user has no notes', async () => {
@@ -85,8 +94,12 @@ describe('Dashboard Component', () => {
 
     renderComponent();
 
-    expect(await screen.findByText('No notes yet')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /create your first note/i })).toBeInTheDocument();
+    try {
+      expect(await screen.findByText('No notes yet')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /create your first note/i })).toBeInTheDocument();
+    } catch (error) {
+      throw new Error(`Dashboard empty state test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('navigates to /notes/new when Create Note button is clicked', async () => {
@@ -100,10 +113,14 @@ describe('Dashboard Component', () => {
 
     renderComponent();
 
-    const createBtn = await screen.findByRole('button', { name: /create note/i });
-    fireEvent.click(createBtn);
+    try {
+      const createBtn = await screen.findByRole('button', { name: /create note/i });
+      fireEvent.click(createBtn);
 
-    expect(mockNavigate).toHaveBeenCalledWith('/notes/new');
+      expect(mockNavigate).toHaveBeenCalledWith('/notes/new');
+    } catch (error) {
+      throw new Error(`Dashboard create note navigation test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('opens delete modal and confirms deletion of a note', async () => {
@@ -118,20 +135,24 @@ describe('Dashboard Component', () => {
 
     renderComponent();
 
-    expect(await screen.findByText('First Note Title')).toBeInTheDocument();
+    try {
+      expect(await screen.findByText('First Note Title')).toBeInTheDocument();
 
-    const deleteButtons = screen.getAllByRole('button', { name: /delete note/i });
-    fireEvent.click(deleteButtons[0]);
+      const deleteButtons = screen.getAllByRole('button', { name: /delete note/i });
+      fireEvent.click(deleteButtons[0]);
 
-    expect(screen.getByText('Confirm Delete')).toBeInTheDocument();
-    expect(screen.getByText(/are you sure you want to delete/i)).toBeInTheDocument();
+      expect(screen.getByText('Confirm Delete')).toBeInTheDocument();
+      expect(screen.getByText(/are you sure you want to delete/i)).toBeInTheDocument();
 
-    const confirmDeleteBtn = screen.getByRole('button', { name: /^delete note$/i });
-    fireEvent.click(confirmDeleteBtn);
+      const confirmDeleteBtn = screen.getByRole('button', { name: /^delete note$/i });
+      fireEvent.click(confirmDeleteBtn);
 
-    await waitFor(() => {
-      expect(notesApi.delete).toHaveBeenCalledWith('note-1');
-      expect(screen.queryByText('First Note Title')).not.toBeInTheDocument();
-    });
+      await waitFor(() => {
+        expect(notesApi.delete).toHaveBeenCalledWith('note-1');
+        expect(screen.queryByText('First Note Title')).not.toBeInTheDocument();
+      });
+    } catch (error) {
+      throw new Error(`Dashboard delete note test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 });

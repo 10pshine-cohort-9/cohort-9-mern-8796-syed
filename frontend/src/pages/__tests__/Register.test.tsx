@@ -6,7 +6,12 @@ import * as AuthContextModule from '../../context/AuthContext';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
+  let actual;
+  try {
+    actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  } catch (error) {
+    throw new Error(`Failed to import actual react-router-dom module in test setup: ${error instanceof Error ? error.message : String(error)}`);
+  }
   return {
     ...actual,
     useNavigate: () => mockNavigate,
@@ -54,10 +59,14 @@ describe('Register (Signup) Component', () => {
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: '123' } });
     fireEvent.click(screen.getByRole('button', { name: /sign up/i }));
 
-    expect(await screen.findByText('Name is required')).toBeInTheDocument();
-    expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
-    expect(screen.getByText('Password must be at least 8 characters long')).toBeInTheDocument();
-    expect(mockRegister).not.toHaveBeenCalled();
+    try {
+      expect(await screen.findByText('Name is required')).toBeInTheDocument();
+      expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
+      expect(screen.getByText('Password must be at least 8 characters long')).toBeInTheDocument();
+      expect(mockRegister).not.toHaveBeenCalled();
+    } catch (error) {
+      throw new Error(`Register form validation test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('submits valid registration details and navigates to home', async () => {
@@ -69,14 +78,18 @@ describe('Register (Signup) Component', () => {
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'securepassword123' } });
     fireEvent.click(screen.getByRole('button', { name: /sign up/i }));
 
-    await waitFor(() => {
-      expect(mockRegister).toHaveBeenCalledWith({
-        name: 'Alice Smith',
-        email: 'alice@example.com',
-        password: 'securepassword123',
+    try {
+      await waitFor(() => {
+        expect(mockRegister).toHaveBeenCalledWith({
+          name: 'Alice Smith',
+          email: 'alice@example.com',
+          password: 'securepassword123',
+        });
+        expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
       });
-      expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
-    });
+    } catch (error) {
+      throw new Error(`Register submission test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('displays server error banner on duplicate registration error', async () => {
@@ -88,7 +101,11 @@ describe('Register (Signup) Component', () => {
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'securepassword123' } });
     fireEvent.click(screen.getByRole('button', { name: /sign up/i }));
 
-    expect(await screen.findByText('Email is already registered')).toBeInTheDocument();
-    expect(mockNavigate).not.toHaveBeenCalled();
+    try {
+      expect(await screen.findByText('Email is already registered')).toBeInTheDocument();
+      expect(mockNavigate).not.toHaveBeenCalled();
+    } catch (error) {
+      throw new Error(`Register server error banner test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 });

@@ -1,6 +1,6 @@
 import 'mocha';
 import { expect } from 'chai';
-import request from 'supertest';
+import request, { type Response as SupertestResponse } from 'supertest';
 import { Types } from 'mongoose';
 import sinon from 'sinon';
 import app from '../src/app';
@@ -29,7 +29,7 @@ describe('Note Controller & Routes (/api/notes)', () => {
         const createUserStub = sinon.stub(User, 'create') as unknown as sinon.SinonStub<[unknown], Promise<UserDocument>>;
         createUserStub.resolves(mockUser as unknown as UserDocument);
 
-        let regRes;
+        let regRes: SupertestResponse;
         try {
             regRes = await request(app)
                 .post('/api/auth/register')
@@ -68,7 +68,7 @@ describe('Note Controller & Routes (/api/notes)', () => {
             const createNoteStub = sinon.stub(Note, 'create') as unknown as sinon.SinonStub<[unknown], Promise<NoteDocument>>;
             createNoteStub.resolves(mockNote as unknown as NoteDocument);
 
-            let res;
+            let res: SupertestResponse;
             try {
                 res = await request(app)
                     .post('/api/notes')
@@ -87,7 +87,7 @@ describe('Note Controller & Routes (/api/notes)', () => {
         });
 
         it('should return 401 when Authorization header is missing', async () => {
-            let res;
+            let res: SupertestResponse;
             try {
                 res = await request(app)
                     .post('/api/notes')
@@ -122,7 +122,7 @@ describe('Note Controller & Routes (/api/notes)', () => {
                 exec: sinon.stub().resolves(mockNotes),
             } as unknown as ReturnType<typeof Note.find>);
 
-            let res;
+            let res: SupertestResponse;
             try {
                 res = await request(app)
                     .get('/api/notes')
@@ -150,7 +150,7 @@ describe('Note Controller & Routes (/api/notes)', () => {
                 exec: sinon.stub().resolves(mockNote),
             } as unknown as ReturnType<typeof Note.findOne>);
 
-            let res;
+            let res: SupertestResponse;
             try {
                 res = await request(app)
                     .get(`/api/notes/${validNoteId.toString()}`)
@@ -168,7 +168,7 @@ describe('Note Controller & Routes (/api/notes)', () => {
                 exec: sinon.stub().resolves(null),
             } as unknown as ReturnType<typeof Note.findOne>);
 
-            let res;
+            let res: SupertestResponse;
             try {
                 res = await request(app)
                     .get(`/api/notes/${validNoteId.toString()}`)
@@ -195,7 +195,7 @@ describe('Note Controller & Routes (/api/notes)', () => {
                 exec: sinon.stub().resolves(mockUpdatedNote),
             } as unknown as ReturnType<typeof Note.findOneAndUpdate>);
 
-            let res;
+            let res: SupertestResponse;
             try {
                 res = await request(app)
                     .put(`/api/notes/${validNoteId.toString()}`)
@@ -221,7 +221,7 @@ describe('Note Controller & Routes (/api/notes)', () => {
                 exec: sinon.stub().resolves(mockDeletedNote),
             } as unknown as ReturnType<typeof Note.findOneAndDelete>);
 
-            let res;
+            let res: SupertestResponse;
             try {
                 res = await request(app)
                     .delete(`/api/notes/${validNoteId.toString()}`)

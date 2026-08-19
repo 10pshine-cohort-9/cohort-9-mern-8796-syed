@@ -3,7 +3,7 @@ import { expect } from 'chai';
 import bcrypt from 'bcryptjs';
 import { Types } from 'mongoose';
 import sinon from 'sinon';
-import User, { type UserDocument } from '../src/models/User';
+import User, { type PublicUser, type UserDocument } from '../src/models/User';
 import TokenRevocation from '../src/models/TokenRevocation';
 import { ApiError } from '../src/utils/ApiError';
 import * as authService from '../src/services/auth.service';
@@ -32,7 +32,7 @@ describe('Auth Service (auth.service.ts)', () => {
             const createStub = sinon.stub(User, 'create') as unknown as sinon.SinonStub<[unknown], Promise<UserDocument>>;
             createStub.resolves(mockUser as unknown as UserDocument);
 
-            let result;
+            let result: authService.AuthResult;
             try {
                 result = await authService.register({
                     name: 'Test User',
@@ -110,7 +110,15 @@ describe('Auth Service (auth.service.ts)', () => {
 
     describe('login', () => {
         it('should authenticate valid credentials and return token and user profile', async () => {
-            const hashedPassword = await bcrypt.hash('password123', 10);
+            let hashedPassword = '';
+            try {
+                hashedPassword = await bcrypt.hash('password123', 10);
+            } catch (error) {
+                throw new Error('Failed to hash password during authentication test setup', {
+                    cause: error,
+                });
+            }
+
             const mockUser = {
                 _id: validUserId,
                 id: validUserId.toString(),
@@ -123,7 +131,7 @@ describe('Auth Service (auth.service.ts)', () => {
                 select: sinon.stub().resolves(mockUser),
             } as unknown as ReturnType<typeof User.findOne>);
 
-            let result;
+            let result: authService.AuthResult;
             try {
                 result = await authService.login({
                     email: 'test@example.com',
@@ -158,7 +166,15 @@ describe('Auth Service (auth.service.ts)', () => {
         });
 
         it('should throw 401 for incorrect password', async () => {
-            const hashedPassword = await bcrypt.hash('realpassword123', 10);
+            let hashedPassword = '';
+            try {
+                hashedPassword = await bcrypt.hash('realpassword123', 10);
+            } catch (error) {
+                throw new Error('Failed to hash password during authentication test setup', {
+                    cause: error,
+                });
+            }
+
             const mockUser = {
                 _id: validUserId,
                 id: validUserId.toString(),
@@ -198,7 +214,7 @@ describe('Auth Service (auth.service.ts)', () => {
                 exec: sinon.stub().resolves({}),
             } as unknown as ReturnType<typeof TokenRevocation.findOneAndUpdate>);
 
-            let result;
+            let result: { readonly userId: string };
             try {
                 result = await authService.logout(userId, tokenId, expiresAt);
             } catch (err: unknown) {
@@ -233,7 +249,7 @@ describe('Auth Service (auth.service.ts)', () => {
 
             sinon.stub(User, 'findById').resolves(mockUser as unknown as UserDocument);
 
-            let user;
+            let user: PublicUser;
             try {
                 user = await authService.getAuthenticatedUser(validUserId.toString());
             } catch (err: unknown) {

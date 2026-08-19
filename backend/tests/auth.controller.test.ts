@@ -1,6 +1,6 @@
 import 'mocha';
 import { expect } from 'chai';
-import request from 'supertest';
+import request, { type Response as SupertestResponse } from 'supertest';
 import { Types } from 'mongoose';
 import sinon from 'sinon';
 import app from '../src/app';
@@ -32,7 +32,7 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
             const createStub = sinon.stub(User, 'create') as unknown as sinon.SinonStub<[unknown], Promise<UserDocument>>;
             createStub.resolves(mockUser as unknown as UserDocument);
 
-            let res;
+            let res: SupertestResponse;
             try {
                 res = await request(app)
                     .post('/api/auth/register')
@@ -52,7 +52,7 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
         });
 
         it('should return 400 bad request if request body is invalid or missing required fields', async () => {
-            let res;
+            let res: SupertestResponse;
             try {
                 res = await request(app)
                     .post('/api/auth/register')
@@ -73,7 +73,7 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
                 lean: sinon.stub().resolves({ _id: validUserId }),
             } as unknown as ReturnType<typeof User.findOne>);
 
-            let res;
+            let res: SupertestResponse;
             try {
                 res = await request(app)
                     .post('/api/auth/register')
@@ -96,7 +96,15 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
 
     describe('POST /api/auth/login', () => {
         it('should return 200 OK with token on successful login', async () => {
-            const hashedPassword = await bcrypt.hash('password123', 10);
+            let hashedPassword = '';
+            try {
+                hashedPassword = await bcrypt.hash('password123', 10);
+            } catch (error) {
+                throw new Error('Failed to hash password during authentication test setup', {
+                    cause: error,
+                });
+            }
+
             const mockUser = {
                 _id: validUserId,
                 id: validUserId.toString(),
@@ -109,7 +117,7 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
                 select: sinon.stub().resolves(mockUser),
             } as unknown as ReturnType<typeof User.findOne>);
 
-            let res;
+            let res: SupertestResponse;
             try {
                 res = await request(app)
                     .post('/api/auth/login')
@@ -127,7 +135,15 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
         });
 
         it('should return 401 unauthorized on wrong credentials', async () => {
-            const hashedPassword = await bcrypt.hash('realpassword123', 10);
+            let hashedPassword = '';
+            try {
+                hashedPassword = await bcrypt.hash('realpassword123', 10);
+            } catch (error) {
+                throw new Error('Failed to hash password during authentication test setup', {
+                    cause: error,
+                });
+            }
+
             const mockUser = {
                 _id: validUserId,
                 id: validUserId.toString(),
@@ -140,7 +156,7 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
                 select: sinon.stub().resolves(mockUser),
             } as unknown as ReturnType<typeof User.findOne>);
 
-            let res;
+            let res: SupertestResponse;
             try {
                 res = await request(app)
                     .post('/api/auth/login')
@@ -159,7 +175,7 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
 
     describe('GET /api/auth/me', () => {
         it('should return 401 unauthorized when Authorization header is missing', async () => {
-            let res;
+            let res: SupertestResponse;
             try {
                 res = await request(app).get('/api/auth/me');
             } catch (err: unknown) {
@@ -185,7 +201,7 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
             const createStub = sinon.stub(User, 'create') as unknown as sinon.SinonStub<[unknown], Promise<UserDocument>>;
             createStub.resolves(mockUser as unknown as UserDocument);
 
-            let regRes;
+            let regRes: SupertestResponse;
             try {
                 regRes = await request(app)
                     .post('/api/auth/register')
@@ -208,7 +224,7 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
 
             sinon.stub(User, 'findById').resolves(mockUser as unknown as UserDocument);
 
-            let res;
+            let res: SupertestResponse;
             try {
                 res = await request(app)
                     .get('/api/auth/me')
@@ -239,7 +255,7 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
             const createStub = sinon.stub(User, 'create') as unknown as sinon.SinonStub<[unknown], Promise<UserDocument>>;
             createStub.resolves(mockUser as unknown as UserDocument);
 
-            let regRes;
+            let regRes: SupertestResponse;
             try {
                 regRes = await request(app)
                     .post('/api/auth/register')
@@ -264,7 +280,7 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
                 exec: sinon.stub().resolves({}),
             } as unknown as ReturnType<typeof TokenRevocation.findOneAndUpdate>);
 
-            let res;
+            let res: SupertestResponse;
             try {
                 res = await request(app)
                     .post('/api/auth/logout')

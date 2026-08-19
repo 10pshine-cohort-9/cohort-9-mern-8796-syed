@@ -6,7 +6,7 @@ import sinon from 'sinon';
 import { env } from '../src/config/env';
 import TokenRevocation from '../src/models/TokenRevocation';
 import { ApiError } from '../src/utils/ApiError';
-import { signAuthToken, verifyAuthToken } from '../src/utils/jwt';
+import { signAuthToken, verifyAuthToken, type AuthTokenPayload } from '../src/utils/jwt';
 
 describe('JWT Utility (jwt.ts)', () => {
     afterEach(() => {
@@ -36,7 +36,7 @@ describe('JWT Utility (jwt.ts)', () => {
                 lean: sinon.stub().resolves(null),
             } as unknown as ReturnType<typeof TokenRevocation.findOne>);
 
-            let payload;
+            let payload: AuthTokenPayload;
             try {
                 payload = await verifyAuthToken(token);
             } catch (err: unknown) {

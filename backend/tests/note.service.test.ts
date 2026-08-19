@@ -29,7 +29,7 @@ describe('Note Service (note.service.ts)', () => {
             const createStub = sinon.stub(Note, 'create') as unknown as sinon.SinonStub<[unknown], Promise<NoteDocument>>;
             createStub.resolves(mockCreatedNote as unknown as NoteDocument);
 
-            let result;
+            let result: NoteDocument;
             try {
                 result = await noteService.createNote(validUserId, {
                     title: 'My Test Note',
@@ -91,7 +91,7 @@ describe('Note Service (note.service.ts)', () => {
                 exec: sinon.stub().resolves(mockNotes),
             } as unknown as ReturnType<typeof Note.find>);
 
-            let result;
+            let result: Awaited<ReturnType<typeof noteService.getNotes>>;
             try {
                 result = await noteService.getNotes(validUserId, {});
             } catch (err: unknown) {
@@ -138,7 +138,7 @@ describe('Note Service (note.service.ts)', () => {
                 exec: sinon.stub().resolves(mockNote),
             } as unknown as ReturnType<typeof Note.findOne>);
 
-            let note;
+            let note: NoteDocument;
             try {
                 note = await noteService.getNoteById(validUserId, validNoteId);
             } catch (err: unknown) {
@@ -179,7 +179,7 @@ describe('Note Service (note.service.ts)', () => {
                 exec: sinon.stub().resolves(updatedMockNote),
             } as unknown as ReturnType<typeof Note.findOneAndUpdate>);
 
-            let note;
+            let note: NoteDocument;
             try {
                 note = await noteService.updateNote(validUserId, validNoteId, {
                     title: 'Updated Title',
@@ -214,7 +214,7 @@ describe('Note Service (note.service.ts)', () => {
                 exec: sinon.stub().resolves(mockDeletedNote),
             } as unknown as ReturnType<typeof Note.findOneAndDelete>);
 
-            let result;
+            let result: { deleted: boolean; noteId: string };
             try {
                 result = await noteService.deleteNote(validUserId, validNoteId);
             } catch (err: unknown) {

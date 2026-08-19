@@ -60,9 +60,13 @@ describe('NoteEditor Component', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Create Note' }));
 
-    expect(await screen.findByText('Title is required.')).toBeInTheDocument();
-    expect(screen.getByText('Content is required.')).toBeInTheDocument();
-    expect(mockOnSubmit).not.toHaveBeenCalled();
+    try {
+      expect(await screen.findByText('Title is required.')).toBeInTheDocument();
+      expect(screen.getByText('Content is required.')).toBeInTheDocument();
+      expect(mockOnSubmit).not.toHaveBeenCalled();
+    } catch (error) {
+      throw new Error(`NoteEditor validation test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('accepts user input and submits form successfully', async () => {
@@ -73,12 +77,16 @@ describe('NoteEditor Component', () => {
     fireEvent.change(screen.getByLabelText(/content/i), { target: { value: 'New Note Body' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create Note' }));
 
-    await waitFor(() => {
-      expect(mockOnSubmit).toHaveBeenCalledWith({
-        title: 'New Note Title',
-        content: 'New Note Body',
+    try {
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith({
+          title: 'New Note Title',
+          content: 'New Note Body',
+        });
       });
-    });
+    } catch (error) {
+      throw new Error(`NoteEditor submission test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('calls onCancel when Cancel button is clicked', () => {

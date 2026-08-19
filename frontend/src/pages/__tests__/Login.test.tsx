@@ -6,7 +6,12 @@ import * as AuthContextModule from '../../context/AuthContext';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
+  let actual;
+  try {
+    actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  } catch (error) {
+    throw new Error(`Failed to import actual react-router-dom module in test setup: ${error instanceof Error ? error.message : String(error)}`);
+  }
   return {
     ...actual,
     useNavigate: () => mockNavigate,
@@ -52,9 +57,13 @@ describe('Login Component', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
-    expect(await screen.findByText('Email is required')).toBeInTheDocument();
-    expect(screen.getByText('Password is required')).toBeInTheDocument();
-    expect(mockLogin).not.toHaveBeenCalled();
+    try {
+      expect(await screen.findByText('Email is required')).toBeInTheDocument();
+      expect(screen.getByText('Password is required')).toBeInTheDocument();
+      expect(mockLogin).not.toHaveBeenCalled();
+    } catch (error) {
+      throw new Error(`Login empty form validation test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('shows validation error for invalid email syntax', async () => {
@@ -64,8 +73,12 @@ describe('Login Component', () => {
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'password123' } });
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
-    expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument();
-    expect(mockLogin).not.toHaveBeenCalled();
+    try {
+      expect(await screen.findByText('Please enter a valid email address')).toBeInTheDocument();
+      expect(mockLogin).not.toHaveBeenCalled();
+    } catch (error) {
+      throw new Error(`Login invalid email validation test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('handles successful submission and redirects to dashboard', async () => {
@@ -76,13 +89,17 @@ describe('Login Component', () => {
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'password123' } });
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
-    await waitFor(() => {
-      expect(mockLogin).toHaveBeenCalledWith({
-        email: 'user@example.com',
-        password: 'password123',
+    try {
+      await waitFor(() => {
+        expect(mockLogin).toHaveBeenCalledWith({
+          email: 'user@example.com',
+          password: 'password123',
+        });
+        expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
       });
-      expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
-    });
+    } catch (error) {
+      throw new Error(`Login submission test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('displays server error banner on failed login attempt', async () => {
@@ -93,7 +110,11 @@ describe('Login Component', () => {
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'wrongpass' } });
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
-    expect(await screen.findByText('Invalid email or password')).toBeInTheDocument();
-    expect(mockNavigate).not.toHaveBeenCalled();
+    try {
+      expect(await screen.findByText('Invalid email or password')).toBeInTheDocument();
+      expect(mockNavigate).not.toHaveBeenCalled();
+    } catch (error) {
+      throw new Error(`Login server error banner test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 });

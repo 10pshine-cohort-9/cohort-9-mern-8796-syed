@@ -6,7 +6,12 @@ import { notesApi } from '../../services/api';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
+  let actual;
+  try {
+    actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  } catch (error) {
+    throw new Error(`Failed to import actual react-router-dom module in test setup: ${error instanceof Error ? error.message : String(error)}`);
+  }
   return {
     ...actual,
     useNavigate: () => mockNavigate,
@@ -73,9 +78,13 @@ describe('NoteEditorPage Component', () => {
 
     expect(screen.getByText('Loading note details...')).toBeInTheDocument();
 
-    expect(await screen.findByRole('heading', { name: 'Edit Note' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/title/i)).toHaveValue('Existing Note Title');
-    expect(screen.getByLabelText(/content/i)).toHaveValue('Existing Note Content');
+    try {
+      expect(await screen.findByRole('heading', { name: 'Edit Note' })).toBeInTheDocument();
+      expect(screen.getByLabelText(/title/i)).toHaveValue('Existing Note Title');
+      expect(screen.getByLabelText(/content/i)).toHaveValue('Existing Note Content');
+    } catch (error) {
+      throw new Error(`NoteEditorPage edit mode fetch test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('displays error card when fetching note details fails in edit mode', async () => {
@@ -83,8 +92,12 @@ describe('NoteEditorPage Component', () => {
 
     renderInEditMode('missing-note');
 
-    expect(await screen.findByText(/Failed to load note details/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /back to dashboard/i })).toBeInTheDocument();
+    try {
+      expect(await screen.findByText(/Failed to load note details/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /back to dashboard/i })).toBeInTheDocument();
+    } catch (error) {
+      throw new Error(`NoteEditorPage fetch error card test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('creates new note and navigates home when submitting in create mode', async () => {
@@ -105,12 +118,16 @@ describe('NoteEditorPage Component', () => {
     fireEvent.change(screen.getByLabelText(/content/i), { target: { value: 'Created Content' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create Note' }));
 
-    await waitFor(() => {
-      expect(notesApi.create).toHaveBeenCalledWith({
-        title: 'Created Title',
-        content: 'Created Content',
+    try {
+      await waitFor(() => {
+        expect(notesApi.create).toHaveBeenCalledWith({
+          title: 'Created Title',
+          content: 'Created Content',
+        });
+        expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
       });
-      expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
-    });
+    } catch (error) {
+      throw new Error(`NoteEditorPage create note submission test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 });
