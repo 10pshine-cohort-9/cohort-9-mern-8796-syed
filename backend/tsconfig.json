@@ -3,14 +3,14 @@
         "target": "ES2022",
         "module": "Node16",
         "moduleResolution": "Node16",
-        "rootDir": "src",
+        "rootDir": ".",
         "outDir": "dist",
         "strict": true,
         "esModuleInterop": true,
         "forceConsistentCasingInFileNames": true,
         "skipLibCheck": true,
-        "types": ["node"]
+        "types": ["node", "mocha"]
     },
-    "include": ["src/**/*.ts"],
+    "include": ["src/**/*.ts", "tests/**/*.ts"],
     "exclude": ["dist", "node_modules"]
 }

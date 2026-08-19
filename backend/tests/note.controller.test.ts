@@ -1,21 +1,22 @@
 import 'mocha';
 import { expect } from 'chai';
 import request from 'supertest';
+import { Types } from 'mongoose';
 import sinon from 'sinon';
 import app from '../src/app';
-import User from '../src/models/User';
-import Note from '../src/models/Note';
+import User, { type UserDocument } from '../src/models/User';
+import Note, { type NoteDocument } from '../src/models/Note';
 import TokenRevocation from '../src/models/TokenRevocation';
 
 describe('Note Controller & Routes (/api/notes)', () => {
-    const validUserId = '507f1f77bcf86cd799439011';
-    const validNoteId = '507f1f77bcf86cd799439022';
+    const validUserId = new Types.ObjectId('507f1f77bcf86cd799439011');
+    const validNoteId = new Types.ObjectId('507f1f77bcf86cd799439022');
     let authToken = '';
 
     beforeEach(async () => {
         const mockUser = {
-            _id: { toString: () => validUserId },
-            id: validUserId,
+            _id: validUserId,
+            id: validUserId.toString(),
             email: 'test@example.com',
             name: 'Test User',
         };
@@ -23,16 +24,23 @@ describe('Note Controller & Routes (/api/notes)', () => {
         sinon.stub(User, 'findOne').returns({
             select: sinon.stub().returnsThis(),
             lean: sinon.stub().resolves(null),
-        } as any);
-        sinon.stub(User, 'create').resolves(mockUser as any);
+        } as unknown as ReturnType<typeof User.findOne>);
+        
+        const createUserStub = sinon.stub(User, 'create') as unknown as sinon.SinonStub<[unknown], Promise<UserDocument>>;
+        createUserStub.resolves(mockUser as unknown as UserDocument);
 
-        const regRes = await request(app)
-            .post('/api/auth/register')
-            .send({
-                name: 'Test User',
-                email: 'test@example.com',
-                password: 'password123',
-            });
+        let regRes;
+        try {
+            regRes = await request(app)
+                .post('/api/auth/register')
+                .send({
+                    name: 'Test User',
+                    email: 'test@example.com',
+                    password: 'password123',
+                });
+        } catch (err: unknown) {
+            expect.fail(`beforeEach setup request failed: ${err instanceof Error ? err.message : String(err)}`);
+        }
 
         authToken = regRes.body.data.token;
         sinon.restore();
@@ -40,7 +48,7 @@ describe('Note Controller & Routes (/api/notes)', () => {
         sinon.stub(TokenRevocation, 'findOne').returns({
             select: sinon.stub().returnsThis(),
             lean: sinon.stub().resolves(null),
-        } as any);
+        } as unknown as ReturnType<typeof TokenRevocation.findOne>);
     });
 
     afterEach(() => {
@@ -51,21 +59,27 @@ describe('Note Controller & Routes (/api/notes)', () => {
         it('should return 201 created with note data when creation succeeds', async () => {
             const mockNote = {
                 _id: validNoteId,
-                id: validNoteId,
-                userId: validUserId,
+                id: validNoteId.toString(),
+                userId: validUserId.toString(),
                 title: 'New Note',
                 content: 'New Note Body',
             };
 
-            sinon.stub(Note, 'create').resolves(mockNote as any);
+            const createNoteStub = sinon.stub(Note, 'create') as unknown as sinon.SinonStub<[unknown], Promise<NoteDocument>>;
+            createNoteStub.resolves(mockNote as unknown as NoteDocument);
 
-            const res = await request(app)
-                .post('/api/notes')
-                .set('Authorization', `Bearer ${authToken}`)
-                .send({
-                    title: 'New Note',
-                    content: 'New Note Body',
-                });
+            let res;
+            try {
+                res = await request(app)
+                    .post('/api/notes')
+                    .set('Authorization', `Bearer ${authToken}`)
+                    .send({
+                        title: 'New Note',
+                        content: 'New Note Body',
+                    });
+            } catch (err: unknown) {
+                expect.fail(`Request failed: ${err instanceof Error ? err.message : String(err)}`);
+            }
 
             expect(res.status).to.equal(201);
             expect(res.body.success).to.be.true;
@@ -73,9 +87,14 @@ describe('Note Controller & Routes (/api/notes)', () => {
         });
 
         it('should return 401 when Authorization header is missing', async () => {
-            const res = await request(app)
-                .post('/api/notes')
-                .send({ title: 'New Note', content: 'Body' });
+            let res;
+            try {
+                res = await request(app)
+                    .post('/api/notes')
+                    .send({ title: 'New Note', content: 'Body' });
+            } catch (err: unknown) {
+                expect.fail(`Request failed: ${err instanceof Error ? err.message : String(err)}`);
+            }
 
             expect(res.status).to.equal(401);
         });
@@ -86,7 +105,7 @@ describe('Note Controller & Routes (/api/notes)', () => {
             const mockNotes = [
                 {
                     _id: validNoteId,
-                    userId: validUserId,
+                    userId: validUserId.toString(),
                     title: 'Note 1',
                     content: 'Content 1',
                     createdAt: new Date(),
@@ -101,11 +120,16 @@ describe('Note Controller & Routes (/api/notes)', () => {
                 limit: sinon.stub().returnsThis(),
                 lean: sinon.stub().returnsThis(),
                 exec: sinon.stub().resolves(mockNotes),
-            } as any);
+            } as unknown as ReturnType<typeof Note.find>);
 
-            const res = await request(app)
-                .get('/api/notes')
-                .set('Authorization', `Bearer ${authToken}`);
+            let res;
+            try {
+                res = await request(app)
+                    .get('/api/notes')
+                    .set('Authorization', `Bearer ${authToken}`);
+            } catch (err: unknown) {
+                expect.fail(`Request failed: ${err instanceof Error ? err.message : String(err)}`);
+            }
 
             expect(res.status).to.equal(200);
             expect(res.body.data.notes).to.be.an('array').with.lengthOf(1);
@@ -117,18 +141,23 @@ describe('Note Controller & Routes (/api/notes)', () => {
         it('should return 200 OK with single note by ID', async () => {
             const mockNote = {
                 _id: validNoteId,
-                userId: validUserId,
+                userId: validUserId.toString(),
                 title: 'Single Note',
                 content: 'Content',
             };
 
             sinon.stub(Note, 'findOne').returns({
                 exec: sinon.stub().resolves(mockNote),
-            } as any);
+            } as unknown as ReturnType<typeof Note.findOne>);
 
-            const res = await request(app)
-                .get(`/api/notes/${validNoteId}`)
-                .set('Authorization', `Bearer ${authToken}`);
+            let res;
+            try {
+                res = await request(app)
+                    .get(`/api/notes/${validNoteId.toString()}`)
+                    .set('Authorization', `Bearer ${authToken}`);
+            } catch (err: unknown) {
+                expect.fail(`Request failed: ${err instanceof Error ? err.message : String(err)}`);
+            }
 
             expect(res.status).to.equal(200);
             expect(res.body.data.note.title).to.equal('Single Note');
@@ -137,11 +166,16 @@ describe('Note Controller & Routes (/api/notes)', () => {
         it('should return 404 when note is not found', async () => {
             sinon.stub(Note, 'findOne').returns({
                 exec: sinon.stub().resolves(null),
-            } as any);
+            } as unknown as ReturnType<typeof Note.findOne>);
 
-            const res = await request(app)
-                .get(`/api/notes/${validNoteId}`)
-                .set('Authorization', `Bearer ${authToken}`);
+            let res;
+            try {
+                res = await request(app)
+                    .get(`/api/notes/${validNoteId.toString()}`)
+                    .set('Authorization', `Bearer ${authToken}`);
+            } catch (err: unknown) {
+                expect.fail(`Request failed: ${err instanceof Error ? err.message : String(err)}`);
+            }
 
             expect(res.status).to.equal(404);
             expect(res.body.message).to.equal('Note not found');
@@ -152,19 +186,24 @@ describe('Note Controller & Routes (/api/notes)', () => {
         it('should return 200 OK with updated note', async () => {
             const mockUpdatedNote = {
                 _id: validNoteId,
-                userId: validUserId,
+                userId: validUserId.toString(),
                 title: 'Updated Title',
                 content: 'Updated Content',
             };
 
             sinon.stub(Note, 'findOneAndUpdate').returns({
                 exec: sinon.stub().resolves(mockUpdatedNote),
-            } as any);
+            } as unknown as ReturnType<typeof Note.findOneAndUpdate>);
 
-            const res = await request(app)
-                .put(`/api/notes/${validNoteId}`)
-                .set('Authorization', `Bearer ${authToken}`)
-                .send({ title: 'Updated Title' });
+            let res;
+            try {
+                res = await request(app)
+                    .put(`/api/notes/${validNoteId.toString()}`)
+                    .set('Authorization', `Bearer ${authToken}`)
+                    .send({ title: 'Updated Title' });
+            } catch (err: unknown) {
+                expect.fail(`Request failed: ${err instanceof Error ? err.message : String(err)}`);
+            }
 
             expect(res.status).to.equal(200);
             expect(res.body.data.note.title).to.equal('Updated Title');
@@ -175,16 +214,21 @@ describe('Note Controller & Routes (/api/notes)', () => {
         it('should return 200 OK when note deletion succeeds', async () => {
             const mockDeletedNote = {
                 _id: validNoteId,
-                userId: validUserId,
+                userId: validUserId.toString(),
             };
 
             sinon.stub(Note, 'findOneAndDelete').returns({
                 exec: sinon.stub().resolves(mockDeletedNote),
-            } as any);
+            } as unknown as ReturnType<typeof Note.findOneAndDelete>);
 
-            const res = await request(app)
-                .delete(`/api/notes/${validNoteId}`)
-                .set('Authorization', `Bearer ${authToken}`);
+            let res;
+            try {
+                res = await request(app)
+                    .delete(`/api/notes/${validNoteId.toString()}`)
+                    .set('Authorization', `Bearer ${authToken}`);
+            } catch (err: unknown) {
+                expect.fail(`Request failed: ${err instanceof Error ? err.message : String(err)}`);
+            }
 
             expect(res.status).to.equal(200);
             expect(res.body.data.deleted).to.be.true;

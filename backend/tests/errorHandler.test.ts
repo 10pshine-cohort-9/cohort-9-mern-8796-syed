@@ -1,14 +1,15 @@
 import 'mocha';
 import { expect } from 'chai';
+import type { NextFunction, Request, Response } from 'express';
 import sinon from 'sinon';
 import errorHandler from '../src/middleware/errorHandler';
 import { logger } from '../src/logger/logger';
 import { ApiError } from '../src/utils/ApiError';
 
 describe('Error Handler Middleware (errorHandler.ts)', () => {
-    let req: any;
-    let res: any;
-    let next: any;
+    let req: Partial<Request>;
+    let res: Partial<Response> & { status: sinon.SinonStub; json: sinon.SinonStub };
+    let next: sinon.SinonStub;
 
     beforeEach(() => {
         req = {
@@ -30,7 +31,7 @@ describe('Error Handler Middleware (errorHandler.ts)', () => {
         const loggerErrorSpy = sinon.spy(logger, 'error');
         const apiErr = new ApiError('Resource not found', 404);
 
-        errorHandler(apiErr, req, res, next);
+        errorHandler(apiErr, req as Request, res as Response, next as NextFunction);
 
         expect(res.status.calledWith(404)).to.be.true;
         expect(res.json.calledWith({
@@ -44,7 +45,7 @@ describe('Error Handler Middleware (errorHandler.ts)', () => {
         const loggerErrorSpy = sinon.spy(logger, 'error');
         const unexpectedError = new Error('Database connection lost');
 
-        errorHandler(unexpectedError, req, res, next);
+        errorHandler(unexpectedError, req as Request, res as Response, next as NextFunction);
 
         expect(res.status.calledWith(500)).to.be.true;
         expect(res.json.calledWith({
@@ -65,7 +66,7 @@ describe('Error Handler Middleware (errorHandler.ts)', () => {
         const loggerErrorSpy = sinon.spy(logger, 'error');
         const nonError = 'Something broke string error';
 
-        errorHandler(nonError, req, res, next);
+        errorHandler(nonError, req as Request, res as Response, next as NextFunction);
 
         expect(res.status.calledWith(500)).to.be.true;
         expect(res.json.calledWith({

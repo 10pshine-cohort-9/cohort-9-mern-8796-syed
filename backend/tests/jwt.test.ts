@@ -1,6 +1,7 @@
 import 'mocha';
 import { expect } from 'chai';
 import jwt from 'jsonwebtoken';
+import { Types } from 'mongoose';
 import sinon from 'sinon';
 import { env } from '../src/config/env';
 import TokenRevocation from '../src/models/TokenRevocation';
@@ -33,9 +34,15 @@ describe('JWT Utility (jwt.ts)', () => {
             const findOneStub = sinon.stub(TokenRevocation, 'findOne').returns({
                 select: sinon.stub().returnsThis(),
                 lean: sinon.stub().resolves(null),
-            } as any);
+            } as unknown as ReturnType<typeof TokenRevocation.findOne>);
 
-            const payload = await verifyAuthToken(token);
+            let payload;
+            try {
+                payload = await verifyAuthToken(token);
+            } catch (err: unknown) {
+                expect.fail(`verifyAuthToken rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
+            }
+
             expect(payload.sub).to.equal(userId);
             expect(payload.jti).to.be.a('string');
             expect(findOneStub.calledOnce).to.be.true;
@@ -45,10 +52,12 @@ describe('JWT Utility (jwt.ts)', () => {
             try {
                 await verifyAuthToken('invalid.token.string');
                 expect.fail('Expected verifyAuthToken to throw');
-            } catch (err: any) {
+            } catch (err: unknown) {
                 expect(err).to.be.instanceOf(ApiError);
-                expect(err.statusCode).to.equal(401);
-                expect(err.message).to.equal('Invalid or expired authentication token');
+                if (err instanceof ApiError) {
+                    expect(err.statusCode).to.equal(401);
+                    expect(err.message).to.equal('Invalid or expired authentication token');
+                }
             }
         });
 
@@ -58,29 +67,34 @@ describe('JWT Utility (jwt.ts)', () => {
             try {
                 await verifyAuthToken(invalidPayloadToken);
                 expect.fail('Expected verifyAuthToken to throw');
-            } catch (err: any) {
+            } catch (err: unknown) {
                 expect(err).to.be.instanceOf(ApiError);
-                expect(err.statusCode).to.equal(401);
-                expect(err.message).to.equal('Invalid authentication token payload');
+                if (err instanceof ApiError) {
+                    expect(err.statusCode).to.equal(401);
+                    expect(err.message).to.equal('Invalid authentication token payload');
+                }
             }
         });
 
         it('should throw ApiError with 401 when the token has been revoked', async () => {
             const userId = '507f1f77bcf86cd799439011';
             const token = signAuthToken(userId);
+            const revokedId = new Types.ObjectId();
 
             sinon.stub(TokenRevocation, 'findOne').returns({
                 select: sinon.stub().returnsThis(),
-                lean: sinon.stub().resolves({ _id: 'revoked_id' }),
-            } as any);
+                lean: sinon.stub().resolves({ _id: revokedId }),
+            } as unknown as ReturnType<typeof TokenRevocation.findOne>);
 
             try {
                 await verifyAuthToken(token);
                 expect.fail('Expected verifyAuthToken to throw for revoked token');
-            } catch (err: any) {
+            } catch (err: unknown) {
                 expect(err).to.be.instanceOf(ApiError);
-                expect(err.statusCode).to.equal(401);
-                expect(err.message).to.equal('Authentication token revoked');
+                if (err instanceof ApiError) {
+                    expect(err.statusCode).to.equal(401);
+                    expect(err.message).to.equal('Authentication token revoked');
+                }
             }
         });
     });

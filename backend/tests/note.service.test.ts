@@ -1,13 +1,14 @@
 import 'mocha';
 import { expect } from 'chai';
+import { Types } from 'mongoose';
 import sinon from 'sinon';
-import Note from '../src/models/Note';
+import Note, { type NoteDocument } from '../src/models/Note';
 import { ApiError } from '../src/utils/ApiError';
 import * as noteService from '../src/services/note.service';
 
 describe('Note Service (note.service.ts)', () => {
-    const validUserId = '507f1f77bcf86cd799439011';
-    const validNoteId = '507f1f77bcf86cd799439022';
+    const validUserId = new Types.ObjectId('507f1f77bcf86cd799439011').toString();
+    const validNoteId = new Types.ObjectId('507f1f77bcf86cd799439022').toString();
 
     afterEach(() => {
         sinon.restore();
@@ -25,12 +26,18 @@ describe('Note Service (note.service.ts)', () => {
                 updatedAt: new Date(),
             };
 
-            sinon.stub(Note, 'create').resolves(mockCreatedNote as any);
+            const createStub = sinon.stub(Note, 'create') as unknown as sinon.SinonStub<[unknown], Promise<NoteDocument>>;
+            createStub.resolves(mockCreatedNote as unknown as NoteDocument);
 
-            const result = await noteService.createNote(validUserId, {
-                title: 'My Test Note',
-                content: 'Some test note content',
-            });
+            let result;
+            try {
+                result = await noteService.createNote(validUserId, {
+                    title: 'My Test Note',
+                    content: 'Some test note content',
+                });
+            } catch (err: unknown) {
+                expect.fail(`noteService.createNote rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
+            }
 
             expect(result.title).to.equal('My Test Note');
             expect(result.content).to.equal('Some test note content');
@@ -43,10 +50,12 @@ describe('Note Service (note.service.ts)', () => {
                     content: 'Content',
                 });
                 expect.fail('Expected createNote to throw ApiError');
-            } catch (err: any) {
+            } catch (err: unknown) {
                 expect(err).to.be.instanceOf(ApiError);
-                expect(err.statusCode).to.equal(401);
-                expect(err.message).to.equal('Authentication required');
+                if (err instanceof ApiError) {
+                    expect(err.statusCode).to.equal(401);
+                    expect(err.message).to.equal('Authentication required');
+                }
             }
         });
 
@@ -57,10 +66,12 @@ describe('Note Service (note.service.ts)', () => {
                     content: 'Content',
                 });
                 expect.fail('Expected createNote to throw ApiError');
-            } catch (err: any) {
+            } catch (err: unknown) {
                 expect(err).to.be.instanceOf(ApiError);
-                expect(err.statusCode).to.equal(400);
-                expect(err.message).to.equal('Title is required');
+                if (err instanceof ApiError) {
+                    expect(err.statusCode).to.equal(400);
+                    expect(err.message).to.equal('Title is required');
+                }
             }
         });
     });
@@ -78,9 +89,15 @@ describe('Note Service (note.service.ts)', () => {
                 limit: sinon.stub().returnsThis(),
                 lean: sinon.stub().returnsThis(),
                 exec: sinon.stub().resolves(mockNotes),
-            } as any);
+            } as unknown as ReturnType<typeof Note.find>);
 
-            const result = await noteService.getNotes(validUserId, {});
+            let result;
+            try {
+                result = await noteService.getNotes(validUserId, {});
+            } catch (err: unknown) {
+                expect.fail(`noteService.getNotes rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
+            }
+
             expect(result.total).to.equal(1);
             expect(result.notes).to.deep.equal(mockNotes);
             expect(result.page).to.equal(1);
@@ -96,9 +113,14 @@ describe('Note Service (note.service.ts)', () => {
                 limit: sinon.stub().returnsThis(),
                 lean: sinon.stub().returnsThis(),
                 exec: sinon.stub().resolves([]),
-            } as any);
+            } as unknown as ReturnType<typeof Note.find>);
 
-            await noteService.getNotes(validUserId, { search: 'keyword' });
+            try {
+                await noteService.getNotes(validUserId, { search: 'keyword' });
+            } catch (err: unknown) {
+                expect.fail(`noteService.getNotes rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
+            }
+
             expect(countStub.firstCall.args[0]).to.have.property('$or');
         });
     });
@@ -114,24 +136,32 @@ describe('Note Service (note.service.ts)', () => {
 
             sinon.stub(Note, 'findOne').returns({
                 exec: sinon.stub().resolves(mockNote),
-            } as any);
+            } as unknown as ReturnType<typeof Note.findOne>);
 
-            const note = await noteService.getNoteById(validUserId, validNoteId);
+            let note;
+            try {
+                note = await noteService.getNoteById(validUserId, validNoteId);
+            } catch (err: unknown) {
+                expect.fail(`noteService.getNoteById rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
+            }
+
             expect(note).to.deep.equal(mockNote);
         });
 
         it('should throw 404 if note is not found or owned by another user', async () => {
             sinon.stub(Note, 'findOne').returns({
                 exec: sinon.stub().resolves(null),
-            } as any);
+            } as unknown as ReturnType<typeof Note.findOne>);
 
             try {
                 await noteService.getNoteById(validUserId, validNoteId);
                 expect.fail('Expected getNoteById to throw');
-            } catch (err: any) {
+            } catch (err: unknown) {
                 expect(err).to.be.instanceOf(ApiError);
-                expect(err.statusCode).to.equal(404);
-                expect(err.message).to.equal('Note not found');
+                if (err instanceof ApiError) {
+                    expect(err.statusCode).to.equal(404);
+                    expect(err.message).to.equal('Note not found');
+                }
             }
         });
     });
@@ -147,12 +177,17 @@ describe('Note Service (note.service.ts)', () => {
 
             sinon.stub(Note, 'findOneAndUpdate').returns({
                 exec: sinon.stub().resolves(updatedMockNote),
-            } as any);
+            } as unknown as ReturnType<typeof Note.findOneAndUpdate>);
 
-            const note = await noteService.updateNote(validUserId, validNoteId, {
-                title: 'Updated Title',
-                content: 'Updated Content',
-            });
+            let note;
+            try {
+                note = await noteService.updateNote(validUserId, validNoteId, {
+                    title: 'Updated Title',
+                    content: 'Updated Content',
+                });
+            } catch (err: unknown) {
+                expect.fail(`noteService.updateNote rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
+            }
 
             expect(note.title).to.equal('Updated Title');
         });
@@ -161,10 +196,12 @@ describe('Note Service (note.service.ts)', () => {
             try {
                 await noteService.updateNote(validUserId, validNoteId, {});
                 expect.fail('Expected updateNote to throw');
-            } catch (err: any) {
+            } catch (err: unknown) {
                 expect(err).to.be.instanceOf(ApiError);
-                expect(err.statusCode).to.equal(400);
-                expect(err.message).to.equal('At least one field must be provided for update');
+                if (err instanceof ApiError) {
+                    expect(err.statusCode).to.equal(400);
+                    expect(err.message).to.equal('At least one field must be provided for update');
+                }
             }
         });
     });
@@ -175,23 +212,31 @@ describe('Note Service (note.service.ts)', () => {
 
             sinon.stub(Note, 'findOneAndDelete').returns({
                 exec: sinon.stub().resolves(mockDeletedNote),
-            } as any);
+            } as unknown as ReturnType<typeof Note.findOneAndDelete>);
 
-            const result = await noteService.deleteNote(validUserId, validNoteId);
+            let result;
+            try {
+                result = await noteService.deleteNote(validUserId, validNoteId);
+            } catch (err: unknown) {
+                expect.fail(`noteService.deleteNote rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
+            }
+
             expect(result).to.deep.equal({ deleted: true, noteId: validNoteId });
         });
 
         it('should throw 404 if note to delete does not exist', async () => {
             sinon.stub(Note, 'findOneAndDelete').returns({
                 exec: sinon.stub().resolves(null),
-            } as any);
+            } as unknown as ReturnType<typeof Note.findOneAndDelete>);
 
             try {
                 await noteService.deleteNote(validUserId, validNoteId);
                 expect.fail('Expected deleteNote to throw');
-            } catch (err: any) {
+            } catch (err: unknown) {
                 expect(err).to.be.instanceOf(ApiError);
-                expect(err.statusCode).to.equal(404);
+                if (err instanceof ApiError) {
+                    expect(err.statusCode).to.equal(404);
+                }
             }
         });
     });
