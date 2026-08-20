@@ -115,13 +115,13 @@ describe('Note Controller & Routes (/api/notes)', () => {
             ];
 
             const countStub = sinon.stub(Note, 'countDocuments').resolves(1);
-            const findStub = sinon.stub(Note, 'find').returns({
+            const findStub = (sinon.stub(Note, 'find') as unknown as sinon.SinonStub).returns({
                 sort: sinon.stub().returnsThis(),
                 skip: sinon.stub().returnsThis(),
                 limit: sinon.stub().returnsThis(),
                 lean: sinon.stub().returnsThis(),
                 exec: sinon.stub().resolves(mockNotes),
-            } as unknown as ReturnType<typeof Note.find>);
+            });
 
             let res: SupertestResponse;
             try {
@@ -132,8 +132,12 @@ describe('Note Controller & Routes (/api/notes)', () => {
                 expect.fail(`Request failed: ${err instanceof Error ? err.message : String(err)}`);
             }
 
-            expect((countStub.firstCall.args as unknown[])[0]).to.deep.include({ userId: validUserId.toString() });
-            expect((findStub.firstCall.args as unknown[])[0]).to.deep.include({ userId: validUserId.toString() });
+            expect(countStub.firstCall.args[0]).to.deep.include({
+                userId: validUserId.toString(),
+            });
+            expect(findStub.firstCall.args[0]).to.deep.include({
+                userId: validUserId.toString(),
+            });
             expect(res.status).to.equal(200);
             expect(res.body.data.notes).to.be.an('array').with.lengthOf(1);
             expect(res.body.data.total).to.equal(1);

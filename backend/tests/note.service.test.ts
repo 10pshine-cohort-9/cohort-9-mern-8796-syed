@@ -83,13 +83,13 @@ describe('Note Service (note.service.ts)', () => {
             ];
 
             const countStub = sinon.stub(Note, 'countDocuments').resolves(1);
-            const findStub = sinon.stub(Note, 'find').returns({
+            const findStub = (sinon.stub(Note, 'find') as unknown as sinon.SinonStub).returns({
                 sort: sinon.stub().returnsThis(),
                 skip: sinon.stub().returnsThis(),
                 limit: sinon.stub().returnsThis(),
                 lean: sinon.stub().returnsThis(),
                 exec: sinon.stub().resolves(mockNotes),
-            } as unknown as ReturnType<typeof Note.find>);
+            });
 
             let result: Awaited<ReturnType<typeof noteService.getNotes>>;
             try {
@@ -98,8 +98,12 @@ describe('Note Service (note.service.ts)', () => {
                 expect.fail(`noteService.getNotes rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
             }
 
-            expect((countStub.firstCall.args as unknown[])[0]).to.deep.include({ userId: validUserId });
-            expect((findStub.firstCall.args as unknown[])[0]).to.deep.include({ userId: validUserId });
+            expect(countStub.firstCall.args[0]).to.deep.include({
+                userId: validUserId,
+            });
+            expect(findStub.firstCall.args[0]).to.deep.include({
+                userId: validUserId,
+            });
             expect(result.total).to.equal(1);
             expect(result.notes).to.deep.equal(mockNotes);
             expect(result.page).to.equal(1);
@@ -109,13 +113,13 @@ describe('Note Service (note.service.ts)', () => {
 
         it('should filter user notes by search keyword', async () => {
             const countStub = sinon.stub(Note, 'countDocuments').resolves(0);
-            const findStub = sinon.stub(Note, 'find').returns({
+            const findStub = (sinon.stub(Note, 'find') as unknown as sinon.SinonStub).returns({
                 sort: sinon.stub().returnsThis(),
                 skip: sinon.stub().returnsThis(),
                 limit: sinon.stub().returnsThis(),
                 lean: sinon.stub().returnsThis(),
                 exec: sinon.stub().resolves([]),
-            } as unknown as ReturnType<typeof Note.find>);
+            });
 
             try {
                 await noteService.getNotes(validUserId, { search: 'keyword' });
@@ -123,9 +127,14 @@ describe('Note Service (note.service.ts)', () => {
                 expect.fail(`noteService.getNotes rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
             }
 
-            expect((countStub.firstCall.args as unknown[])[0]).to.deep.include({ userId: validUserId });
-            expect((findStub.firstCall.args as unknown[])[0]).to.deep.include({ userId: validUserId });
-            expect((countStub.firstCall.args as unknown[])[0]).to.have.property('$or');
+            expect(countStub.firstCall.args[0]).to.deep.include({
+                userId: validUserId,
+            });
+            expect(findStub.firstCall.args[0]).to.deep.include({
+                userId: validUserId,
+            });
+            expect(countStub.firstCall.args[0]).to.have.property('$or');
+            expect(findStub.firstCall.args[0]).to.have.property('$or');
         });
     });
 
