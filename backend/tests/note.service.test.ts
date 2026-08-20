@@ -134,7 +134,7 @@ describe('Note Service (note.service.ts)', () => {
                 content: 'Body content',
             };
 
-            sinon.stub(Note, 'findOne').returns({
+            const findOneStub = sinon.stub(Note, 'findOne').returns({
                 exec: sinon.stub().resolves(mockNote),
             } as unknown as ReturnType<typeof Note.findOne>);
 
@@ -145,6 +145,10 @@ describe('Note Service (note.service.ts)', () => {
                 expect.fail(`noteService.getNoteById rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
             }
 
+            expect(findOneStub.firstCall.args[0]).to.deep.include({
+                _id: validNoteId,
+                userId: validUserId,
+            });
             expect(note).to.deep.equal(mockNote);
         });
 
@@ -175,7 +179,7 @@ describe('Note Service (note.service.ts)', () => {
                 content: 'Updated Content',
             };
 
-            sinon.stub(Note, 'findOneAndUpdate').returns({
+            const findOneAndUpdateStub = sinon.stub(Note, 'findOneAndUpdate').returns({
                 exec: sinon.stub().resolves(updatedMockNote),
             } as unknown as ReturnType<typeof Note.findOneAndUpdate>);
 
@@ -189,6 +193,10 @@ describe('Note Service (note.service.ts)', () => {
                 expect.fail(`noteService.updateNote rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
             }
 
+            expect(findOneAndUpdateStub.firstCall.args[0]).to.deep.include({
+                _id: validNoteId,
+                userId: validUserId,
+            });
             expect(note.title).to.equal('Updated Title');
         });
 
@@ -210,7 +218,7 @@ describe('Note Service (note.service.ts)', () => {
         it('should delete existing note and return deleted result object', async () => {
             const mockDeletedNote = { _id: validNoteId, userId: validUserId };
 
-            sinon.stub(Note, 'findOneAndDelete').returns({
+            const findOneAndDeleteStub = sinon.stub(Note, 'findOneAndDelete').returns({
                 exec: sinon.stub().resolves(mockDeletedNote),
             } as unknown as ReturnType<typeof Note.findOneAndDelete>);
 
@@ -221,6 +229,10 @@ describe('Note Service (note.service.ts)', () => {
                 expect.fail(`noteService.deleteNote rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
             }
 
+            expect(findOneAndDeleteStub.firstCall.args[0]).to.deep.include({
+                _id: validNoteId,
+                userId: validUserId,
+            });
             expect(result).to.deep.equal({ deleted: true, noteId: validNoteId });
         });
 

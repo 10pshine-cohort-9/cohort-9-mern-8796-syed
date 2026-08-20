@@ -42,6 +42,7 @@ describe('Note Controller & Routes (/api/notes)', () => {
             expect.fail(`beforeEach setup request failed: ${err instanceof Error ? err.message : String(err)}`);
         }
 
+        expect(regRes.status).to.equal(201, JSON.stringify(regRes.body));
         authToken = regRes.body.data.token;
         sinon.restore();
 

@@ -215,6 +215,7 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
                 expect.fail(`Registration setup request failed: ${err instanceof Error ? err.message : String(err)}`);
             }
 
+            expect(regRes.status).to.equal(201, JSON.stringify(regRes.body));
             const token = regRes.body.data.token;
             sinon.restore();
 
@@ -269,13 +270,15 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
                 expect.fail(`Registration setup request failed: ${err instanceof Error ? err.message : String(err)}`);
             }
 
+            expect(regRes.status).to.equal(201, JSON.stringify(regRes.body));
             const token = regRes.body.data.token;
             sinon.restore();
 
-            const decoded = jwt.decode(token) as { jti: string; sub: string; exp: number };
-            const expectedTokenId = decoded.jti;
+            const decoded = jwt.decode(token) as { jti: string; sub: string; exp: number } | null;
+            expect(decoded).to.not.equal(null);
+            const expectedTokenId = decoded!.jti;
             const expectedUserId = validUserId.toString();
-            const expectedExpiresAt = new Date(decoded.exp * 1000);
+            const expectedExpiresAt = new Date(decoded!.exp * 1000);
 
             sinon.stub(TokenRevocation, 'findOne').returns({
                 select: sinon.stub().returnsThis(),
