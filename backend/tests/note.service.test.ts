@@ -82,8 +82,8 @@ describe('Note Service (note.service.ts)', () => {
                 { _id: validNoteId, title: 'Note 1', content: 'Content 1', userId: validUserId },
             ];
 
-            sinon.stub(Note, 'countDocuments').resolves(1);
-            sinon.stub(Note, 'find').returns({
+            const countStub = sinon.stub(Note, 'countDocuments').resolves(1);
+            const findStub = sinon.stub(Note, 'find').returns({
                 sort: sinon.stub().returnsThis(),
                 skip: sinon.stub().returnsThis(),
                 limit: sinon.stub().returnsThis(),
@@ -98,6 +98,8 @@ describe('Note Service (note.service.ts)', () => {
                 expect.fail(`noteService.getNotes rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
             }
 
+            expect((countStub.firstCall.args as unknown[])[0]).to.deep.include({ userId: validUserId });
+            expect((findStub.firstCall.args as unknown[])[0]).to.deep.include({ userId: validUserId });
             expect(result.total).to.equal(1);
             expect(result.notes).to.deep.equal(mockNotes);
             expect(result.page).to.equal(1);
@@ -107,7 +109,7 @@ describe('Note Service (note.service.ts)', () => {
 
         it('should filter user notes by search keyword', async () => {
             const countStub = sinon.stub(Note, 'countDocuments').resolves(0);
-            sinon.stub(Note, 'find').returns({
+            const findStub = sinon.stub(Note, 'find').returns({
                 sort: sinon.stub().returnsThis(),
                 skip: sinon.stub().returnsThis(),
                 limit: sinon.stub().returnsThis(),
@@ -121,7 +123,9 @@ describe('Note Service (note.service.ts)', () => {
                 expect.fail(`noteService.getNotes rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
             }
 
-            expect(countStub.firstCall.args[0]).to.have.property('$or');
+            expect((countStub.firstCall.args as unknown[])[0]).to.deep.include({ userId: validUserId });
+            expect((findStub.firstCall.args as unknown[])[0]).to.deep.include({ userId: validUserId });
+            expect((countStub.firstCall.args as unknown[])[0]).to.have.property('$or');
         });
     });
 
