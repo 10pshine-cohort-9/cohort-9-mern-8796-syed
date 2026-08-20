@@ -7,6 +7,7 @@ import app from '../src/app';
 import User, { type UserDocument } from '../src/models/User';
 import TokenRevocation from '../src/models/TokenRevocation';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 describe('Auth Controller & Routes (POST /api/auth/*)', () => {
     const validUserId = new Types.ObjectId('507f1f77bcf86cd799439011');
@@ -271,12 +272,17 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
             const token = regRes.body.data.token;
             sinon.restore();
 
+            const decoded = jwt.decode(token) as { jti: string; sub: string; exp: number };
+            const expectedTokenId = decoded.jti;
+            const expectedUserId = validUserId.toString();
+            const expectedExpiresAt = new Date(decoded.exp * 1000);
+
             sinon.stub(TokenRevocation, 'findOne').returns({
                 select: sinon.stub().returnsThis(),
                 lean: sinon.stub().resolves(null),
             } as unknown as ReturnType<typeof TokenRevocation.findOne>);
             sinon.stub(User, 'findById').resolves(mockUser as unknown as UserDocument);
-            sinon.stub(TokenRevocation, 'findOneAndUpdate').returns({
+            const findOneAndUpdateStub = sinon.stub(TokenRevocation, 'findOneAndUpdate').returns({
                 exec: sinon.stub().resolves({}),
             } as unknown as ReturnType<typeof TokenRevocation.findOneAndUpdate>);
 
@@ -291,6 +297,24 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
 
             expect(res.status).to.equal(200);
             expect(res.body.message).to.equal('Logout successful');
+            expect(findOneAndUpdateStub.calledOnce).to.be.true;
+            expect(
+                findOneAndUpdateStub.calledWith(
+                    { jti: expectedTokenId },
+                    {
+                        $setOnInsert: {
+                            expiresAt: expectedExpiresAt,
+                            jti: expectedTokenId,
+                            userId: expectedUserId,
+                        },
+                    },
+                    {
+                        upsert: true,
+                        new: false,
+                        setDefaultsOnInsert: true,
+                    },
+                ),
+            ).to.be.true;
         });
     });
 });

@@ -210,7 +210,7 @@ describe('Auth Service (auth.service.ts)', () => {
             const expiresAt = new Date(Date.now() + 3600000);
 
             sinon.stub(User, 'findById').resolves({ _id: validUserId } as unknown as UserDocument);
-            sinon.stub(TokenRevocation, 'findOneAndUpdate').returns({
+            const findOneAndUpdateStub = sinon.stub(TokenRevocation, 'findOneAndUpdate').returns({
                 exec: sinon.stub().resolves({}),
             } as unknown as ReturnType<typeof TokenRevocation.findOneAndUpdate>);
 
@@ -221,6 +221,24 @@ describe('Auth Service (auth.service.ts)', () => {
                 expect.fail(`authService.logout rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
             }
 
+            expect(findOneAndUpdateStub.calledOnce).to.be.true;
+            expect(
+                findOneAndUpdateStub.calledWith(
+                    { jti: tokenId },
+                    {
+                        $setOnInsert: {
+                            expiresAt,
+                            jti: tokenId,
+                            userId,
+                        },
+                    },
+                    {
+                        upsert: true,
+                        new: false,
+                        setDefaultsOnInsert: true,
+                    },
+                ),
+            ).to.be.true;
             expect(result).to.deep.equal({ userId });
         });
 
