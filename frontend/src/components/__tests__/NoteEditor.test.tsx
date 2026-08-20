@@ -10,7 +10,7 @@ describe('NoteEditor Component', () => {
     vi.clearAllMocks();
   });
 
-  const renderComponent = (mode: 'create' | 'edit' = 'create', initialTitle = '', initialContent = '') => {
+  const renderComponent = (mode: 'create' | 'edit' = 'create', initialTitle = '', initialContent = ''): ReturnType<typeof render> => {
     return render(
       <NoteEditor
         mode={mode}

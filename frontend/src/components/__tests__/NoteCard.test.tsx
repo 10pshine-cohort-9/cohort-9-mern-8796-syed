@@ -30,7 +30,7 @@ describe('NoteCard Component', () => {
     vi.clearAllMocks();
   });
 
-  const renderComponent = (isDeleting = false) => {
+  const renderComponent = (isDeleting = false): ReturnType<typeof render> => {
     return render(
       <BrowserRouter>
         <NoteCard note={sampleNote} onDeleteRequest={mockDeleteRequest} isDeleting={isDeleting} />

@@ -6,7 +6,7 @@ import { notesApi } from '../../services/api';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
-  let actual;
+  let actual: typeof import('react-router-dom');
   try {
     actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   } catch (error) {
@@ -36,7 +36,7 @@ describe('NoteEditorPage Component', () => {
     vi.clearAllMocks();
   });
 
-  const renderInCreateMode = () => {
+  const renderInCreateMode = (): ReturnType<typeof render> => {
     return render(
       <BrowserRouter>
         <NoteEditorPage />
@@ -44,7 +44,7 @@ describe('NoteEditorPage Component', () => {
     );
   };
 
-  const renderInEditMode = (id = 'note-123') => {
+  const renderInEditMode = (id = 'note-123'): ReturnType<typeof render> => {
     window.history.pushState({}, 'Edit Note', `/notes/${id}/edit`);
     return render(
       <BrowserRouter>

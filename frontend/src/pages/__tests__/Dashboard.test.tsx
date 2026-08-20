@@ -6,7 +6,7 @@ import { notesApi } from '../../services/api';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
-  let actual;
+  let actual: typeof import('react-router-dom');
   try {
     actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
   } catch (error) {
@@ -54,7 +54,7 @@ describe('Dashboard Component', () => {
     vi.clearAllMocks();
   });
 
-  const renderComponent = () => {
+  const renderComponent = (): ReturnType<typeof render> => {
     return render(
       <BrowserRouter>
         <Dashboard />
