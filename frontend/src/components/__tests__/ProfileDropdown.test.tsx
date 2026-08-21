@@ -5,11 +5,15 @@ import { ProfileDropdown } from '../ProfileDropdown';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
+  try {
+    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    return {
+      ...actual,
+      useNavigate: () => mockNavigate,
+    };
+  } catch (error: unknown) {
+    throw new Error(`react-router-dom mock setup failed in ProfileDropdown.test.tsx: ${error instanceof Error ? error.message : String(error)}`);
+  }
 });
 
 describe('ProfileDropdown Component', () => {

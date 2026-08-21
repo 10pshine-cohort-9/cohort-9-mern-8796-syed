@@ -118,4 +118,30 @@ describe('NoteEditor Component', () => {
 
     expect(textarea.value).toBe('- First bullet item\n- ');
   });
+
+  it('preserves snake_case_name, C#, and 2 > 1 while removing actual formatting when clear formatting is clicked', () => {
+    const formattedContent = '**bold text** and snake_case_name with C# and 2 > 1';
+    renderComponent('create', 'Title', formattedContent);
+
+    const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+    textarea.selectionStart = 0;
+    textarea.selectionEnd = formattedContent.length;
+
+    const clearBtn = screen.getByRole('button', { name: /clear formatting/i });
+    fireEvent.click(clearBtn);
+
+    expect(textarea.value).toBe('bold text and snake_case_name with C# and 2 > 1');
+  });
+
+  it('does not trigger Ctrl+B formatting when Alt key is pressed (AltGr protection)', () => {
+    renderComponent('create', 'Title', 'plain text');
+
+    const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+    textarea.selectionStart = 0;
+    textarea.selectionEnd = 10;
+
+    fireEvent.keyDown(textarea, { key: 'b', ctrlKey: true, altKey: true });
+
+    expect(textarea.value).toBe('plain text');
+  });
 });

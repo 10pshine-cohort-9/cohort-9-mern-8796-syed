@@ -48,7 +48,9 @@ export const Register: React.FC = () => {
       newErrors.password = 'Password must be at least 8 characters long';
     }
 
-    if (confirmPassword && password !== confirmPassword) {
+    if (!confirmPassword) {
+      newErrors.confirmPassword = 'Confirm Password is required';
+    } else if (password !== confirmPassword) {
       newErrors.confirmPassword = 'Passwords do not match';
     }
 

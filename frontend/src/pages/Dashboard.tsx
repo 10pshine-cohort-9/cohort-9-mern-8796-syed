@@ -116,6 +116,7 @@ export const Dashboard: React.FC = () => {
 
   const handleClearFilters = (): void => {
     setSearchQuery('');
+    setDebouncedSearch('');
     setSelectedSort('updatedAt:desc');
   };
 
@@ -142,7 +143,9 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const hasActiveFilters = Boolean(debouncedSearch.trim() || selectedSort !== 'updatedAt:desc');
+  const hasActiveSearch = Boolean(debouncedSearch.trim());
+  const hasNonDefaultSort = selectedSort !== 'updatedAt:desc';
+  const hasActiveFilters = hasActiveSearch || hasNonDefaultSort;
 
   return (
     <div className="dashboard-container">
@@ -163,7 +166,10 @@ export const Dashboard: React.FC = () => {
               <button
                 type="button"
                 className="search-clear-btn"
-                onClick={() => setSearchQuery('')}
+                onClick={() => {
+                  setSearchQuery('');
+                  setDebouncedSearch('');
+                }}
                 aria-label="Clear search query"
               >
                 <FiX />
@@ -227,13 +233,11 @@ export const Dashboard: React.FC = () => {
             <FiFileText />
           </div>
           <h3 className="empty-state-title">
-            {hasActiveFilters ? 'No matching notes found' : 'No notes yet'}
+            {hasActiveSearch ? 'No matching notes found' : 'No notes yet'}
           </h3>
           <p className="empty-state-desc">
-            {hasActiveFilters
-              ? debouncedSearch
-                ? `No notes matched "${debouncedSearch}". Try a different keyword or reset filters.`
-                : 'No notes match the current sort selection.'
+            {hasActiveSearch
+              ? `No notes matched "${debouncedSearch}". Try a different keyword or reset filters.`
               : 'Create your first note to capture ideas, quick thoughts, or detailed notes!'}
           </p>
           {hasActiveFilters ? (

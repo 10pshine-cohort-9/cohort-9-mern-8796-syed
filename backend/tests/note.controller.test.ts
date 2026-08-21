@@ -50,6 +50,11 @@ describe('Note Controller & Routes (/api/notes)', () => {
             select: sinon.stub().returnsThis(),
             lean: sinon.stub().resolves(null),
         } as unknown as ReturnType<typeof TokenRevocation.findOne>);
+
+        sinon.stub(User, 'findById').returns({
+            select: sinon.stub().returnsThis(),
+            lean: sinon.stub().resolves({ _id: validUserId, passwordChangedAt: undefined }),
+        } as unknown as ReturnType<typeof User.findById>);
     });
 
     afterEach(() => {

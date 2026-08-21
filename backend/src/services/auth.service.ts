@@ -341,6 +341,7 @@ export async function changePassword(userId: string, input: ChangePasswordInput)
         const hashedNewPassword = await bcrypt.hash(input.newPassword, BCRYPT_SALT_ROUNDS);
 
         user.password = hashedNewPassword;
+        user.passwordChangedAt = new Date();
         await user.save();
 
         logger.info({ userId }, 'User password changed successfully');

@@ -167,16 +167,20 @@ describe('Dashboard Component', () => {
 
     renderComponent();
 
-    const sortSelect = await screen.findByLabelText(/sort notes by/i);
-    fireEvent.change(sortSelect, { target: { value: 'title:asc' } });
+    try {
+      const sortSelect = await screen.findByLabelText(/sort notes by/i);
+      fireEvent.change(sortSelect, { target: { value: 'title:asc' } });
 
-    await waitFor(() => {
-      expect(notesApi.list).toHaveBeenCalledWith(
-        expect.objectContaining({
-          sortBy: 'title',
-          sortOrder: 'asc',
-        })
-      );
-    });
+      await waitFor(() => {
+        expect(notesApi.list).toHaveBeenCalledWith(
+          expect.objectContaining({
+            sortBy: 'title',
+            sortOrder: 'asc',
+          })
+        );
+      });
+    } catch (error) {
+      throw new Error(`Dashboard sort options change test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 });

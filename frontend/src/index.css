@@ -875,10 +875,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  animation: dropdownFadeIn 0.15s ease-out;
+  animation: dropdown-fade-in 0.15s ease-out;
 }
 
-@keyframes dropdownFadeIn {
+@keyframes dropdown-fade-in {
   from {
     opacity: 0;
     transform: translateY(-6px);

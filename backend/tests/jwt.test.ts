@@ -5,6 +5,7 @@ import { Types } from 'mongoose';
 import sinon from 'sinon';
 import { env } from '../src/config/env';
 import TokenRevocation from '../src/models/TokenRevocation';
+import User from '../src/models/User';
 import { ApiError } from '../src/utils/ApiError';
 import { signAuthToken, verifyAuthToken, type AuthTokenPayload } from '../src/utils/jwt';
 
@@ -35,6 +36,11 @@ describe('JWT Utility (jwt.ts)', () => {
                 select: sinon.stub().returnsThis(),
                 lean: sinon.stub().resolves(null),
             } as unknown as ReturnType<typeof TokenRevocation.findOne>);
+
+            sinon.stub(User, 'findById').returns({
+                select: sinon.stub().returnsThis(),
+                lean: sinon.stub().resolves(null),
+            } as unknown as ReturnType<typeof User.findById>);
 
             let payload: AuthTokenPayload;
             try {
@@ -89,6 +95,33 @@ describe('JWT Utility (jwt.ts)', () => {
             try {
                 await verifyAuthToken(token);
                 expect.fail('Expected verifyAuthToken to throw for revoked token');
+            } catch (err: unknown) {
+                expect(err).to.be.instanceOf(ApiError);
+                if (err instanceof ApiError) {
+                    expect(err.statusCode).to.equal(401);
+                    expect(err.message).to.equal('Authentication token revoked');
+                }
+            }
+        });
+
+        it('should throw ApiError with 401 when token was issued before password change', async () => {
+            const userId = '507f1f77bcf86cd799439011';
+            const token = signAuthToken(userId);
+
+            sinon.stub(TokenRevocation, 'findOne').returns({
+                select: sinon.stub().returnsThis(),
+                lean: sinon.stub().resolves(null),
+            } as unknown as ReturnType<typeof TokenRevocation.findOne>);
+
+            const futurePasswordChangedAt = new Date(Date.now() + 10000);
+            sinon.stub(User, 'findById').returns({
+                select: sinon.stub().returnsThis(),
+                lean: sinon.stub().resolves({ passwordChangedAt: futurePasswordChangedAt }),
+            } as unknown as ReturnType<typeof User.findById>);
+
+            try {
+                await verifyAuthToken(token);
+                expect.fail('Expected verifyAuthToken to throw for token issued before password change');
             } catch (err: unknown) {
                 expect(err).to.be.instanceOf(ApiError);
                 if (err instanceof ApiError) {

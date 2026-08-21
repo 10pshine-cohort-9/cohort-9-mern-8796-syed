@@ -54,7 +54,7 @@ describe('Register (Signup) Component', () => {
     expect(screen.getByRole('button', { name: /sign up/i })).toBeInTheDocument();
   });
 
-  it('validates missing name, invalid email, and password under 8 characters', async () => {
+  it('validates missing name, invalid email, password under 8 characters, and missing confirm password', async () => {
     renderComponent();
 
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'bad-email' } });
@@ -65,9 +65,27 @@ describe('Register (Signup) Component', () => {
       expect(await screen.findByText('Name is required')).toBeInTheDocument();
       expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
       expect(screen.getByText('Password must be at least 8 characters long')).toBeInTheDocument();
+      expect(screen.getByText('Confirm Password is required')).toBeInTheDocument();
       expect(mockRegister).not.toHaveBeenCalled();
     } catch (error) {
       throw new Error(`Register form validation test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  });
+
+  it('validates mismatched confirm password', async () => {
+    renderComponent();
+
+    fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'Alice Smith' } });
+    fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'alice@example.com' } });
+    fireEvent.change(screen.getByPlaceholderText('At least 8 characters'), { target: { value: 'securepassword123' } });
+    fireEvent.change(screen.getByPlaceholderText('Confirm your password'), { target: { value: 'mismatched123' } });
+    fireEvent.click(screen.getByRole('button', { name: /sign up/i }));
+
+    try {
+      expect(await screen.findByText('Passwords do not match')).toBeInTheDocument();
+      expect(mockRegister).not.toHaveBeenCalled();
+    } catch (error) {
+      throw new Error(`Register mismatched password test failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   });
 
@@ -78,6 +96,7 @@ describe('Register (Signup) Component', () => {
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'Alice Smith' } });
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'alice@example.com' } });
     fireEvent.change(screen.getByPlaceholderText('At least 8 characters'), { target: { value: 'securepassword123' } });
+    fireEvent.change(screen.getByPlaceholderText('Confirm your password'), { target: { value: 'securepassword123' } });
     fireEvent.click(screen.getByRole('button', { name: /sign up/i }));
 
     try {
@@ -101,6 +120,7 @@ describe('Register (Signup) Component', () => {
     fireEvent.change(screen.getByLabelText(/full name/i), { target: { value: 'Alice Smith' } });
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'alice@example.com' } });
     fireEvent.change(screen.getByPlaceholderText('At least 8 characters'), { target: { value: 'securepassword123' } });
+    fireEvent.change(screen.getByPlaceholderText('Confirm your password'), { target: { value: 'securepassword123' } });
     fireEvent.click(screen.getByRole('button', { name: /sign up/i }));
 
     try {

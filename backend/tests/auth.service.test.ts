@@ -298,33 +298,37 @@ describe('Auth Service (auth.service.ts)', () => {
 
     describe('updateProfile', () => {
         it('should update user name and email successfully and return updated public profile', async () => {
-            const mockUser = {
-                _id: validUserId,
-                id: validUserId.toString(),
-                email: 'old@example.com',
-                name: 'Old Name',
-                save: sinon.stub().resolves(),
-            };
+            try {
+                const mockUser = {
+                    _id: validUserId,
+                    id: validUserId.toString(),
+                    email: 'old@example.com',
+                    name: 'Old Name',
+                    save: sinon.stub().resolves(),
+                };
 
-            sinon.stub(User, 'findById').resolves(mockUser as unknown as UserDocument);
-            sinon.stub(User, 'findOne').returns({
-                select: sinon.stub().returnsThis(),
-                lean: sinon.stub().resolves(null),
-            } as unknown as ReturnType<typeof User.findOne>);
+                sinon.stub(User, 'findById').resolves(mockUser as unknown as UserDocument);
+                sinon.stub(User, 'findOne').returns({
+                    select: sinon.stub().returnsThis(),
+                    lean: sinon.stub().resolves(null),
+                } as unknown as ReturnType<typeof User.findOne>);
 
-            const result = await authService.updateProfile(validUserId.toString(), {
-                name: 'New Name',
-                email: 'new@example.com',
-            });
+                const result = await authService.updateProfile(validUserId.toString(), {
+                    name: 'New Name',
+                    email: 'new@example.com',
+                });
 
-            expect(mockUser.name).to.equal('New Name');
-            expect(mockUser.email).to.equal('new@example.com');
-            expect(mockUser.save.calledOnce).to.be.true;
-            expect(result).to.deep.equal({
-                id: validUserId.toString(),
-                name: 'New Name',
-                email: 'new@example.com',
-            });
+                expect(mockUser.name).to.equal('New Name');
+                expect(mockUser.email).to.equal('new@example.com');
+                expect(mockUser.save.calledOnce).to.be.true;
+                expect(result).to.deep.equal({
+                    id: validUserId.toString(),
+                    name: 'New Name',
+                    email: 'new@example.com',
+                });
+            } catch (err: unknown) {
+                expect.fail(`updateProfile success test failed: ${err instanceof Error ? err.message : String(err)}`);
+            }
         });
 
         it('should throw 409 when new email is already taken by another user', async () => {
@@ -380,25 +384,31 @@ describe('Auth Service (auth.service.ts)', () => {
 
     describe('changePassword', () => {
         it('should successfully update password when current password is valid and new password meets policy', async () => {
-            const currentHashed = await bcrypt.hash('CurrentPass123!', 10);
-            const mockUser = {
-                _id: validUserId,
-                password: currentHashed,
-                save: sinon.stub().resolves(),
-            };
+            try {
+                const currentHashed = await bcrypt.hash('CurrentPass123!', 10);
+                const mockUser = {
+                    _id: validUserId,
+                    password: currentHashed,
+                    passwordChangedAt: undefined as Date | undefined,
+                    save: sinon.stub().resolves(),
+                };
 
-            sinon.stub(User, 'findById').returns({
-                select: sinon.stub().resolves(mockUser),
-            } as unknown as ReturnType<typeof User.findById>);
+                sinon.stub(User, 'findById').returns({
+                    select: sinon.stub().resolves(mockUser),
+                } as unknown as ReturnType<typeof User.findById>);
 
-            await authService.changePassword(validUserId.toString(), {
-                currentPassword: 'CurrentPass123!',
-                newPassword: 'NewStrongPassword456!',
-            });
+                await authService.changePassword(validUserId.toString(), {
+                    currentPassword: 'CurrentPass123!',
+                    newPassword: 'NewStrongPassword456!',
+                });
 
-            expect(mockUser.save.calledOnce).to.be.true;
-            const matchesNew = await bcrypt.compare('NewStrongPassword456!', mockUser.password);
-            expect(matchesNew).to.be.true;
+                expect(mockUser.save.calledOnce).to.be.true;
+                expect(mockUser.passwordChangedAt).to.be.an.instanceOf(Date);
+                const matchesNew = await bcrypt.compare('NewStrongPassword456!', mockUser.password);
+                expect(matchesNew).to.be.true;
+            } catch (err: unknown) {
+                expect.fail(`changePassword success test failed: ${err instanceof Error ? err.message : String(err)}`);
+            }
         });
 
         it('should throw 401 when current password is incorrect', async () => {
