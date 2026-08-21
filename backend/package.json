@@ -1,7 +1,7 @@
 {
     "name": "notes-app-backend",
     "version": "1.0.0",
-    "description": "Backend foundation for the Notes App",
+    "description": "Backend foundation for NoteNest",
     "main": "dist/server.js",
     "type": "commonjs",
     "scripts": {
@@ -10,7 +10,7 @@
         "start": "node dist/server.js",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "typecheck:test": "tsc -p tsconfig.test.json",
-        "test": "mocha --require tsx/cjs \"tests/**/*.test.ts\""
+        "test": "mocha --require tsx \"tests/**/*.test.ts\""
     },
     "dependencies": {
         "bcryptjs": "^3.0.3",

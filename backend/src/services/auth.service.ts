@@ -244,3 +244,112 @@ export async function getAuthenticatedUser(userId: string): Promise<PublicUser> 
         throw new ApiError('Authenticated user lookup failed', 500);
     }
 }
+
+export type UpdateProfileInput = {
+    readonly email?: string;
+    readonly name?: string;
+};
+
+export type ChangePasswordInput = {
+    readonly currentPassword: string;
+    readonly newPassword: string;
+};
+
+export async function updateProfile(userId: string, input: UpdateProfileInput): Promise<PublicUser> {
+    try {
+        const user = await User.findById(userId);
+
+        if (user === null) {
+            throw new ApiError('Authenticated user not found', 401);
+        }
+
+        let hasUpdates = false;
+
+        if (input.name !== undefined) {
+            const name = validateName(input.name);
+            user.name = name;
+            hasUpdates = true;
+        }
+
+        if (input.email !== undefined) {
+            validateEmail(input.email);
+            const normalizedEmail = normalizeEmail(input.email);
+
+            if (normalizedEmail !== user.email) {
+                const existingUser = await User.findOne({ email: normalizedEmail }).select('_id').lean();
+                if (existingUser !== null && existingUser._id.toString() !== userId) {
+                    throw new ApiError('Email is already registered', 409);
+                }
+                user.email = normalizedEmail;
+                hasUpdates = true;
+            }
+        }
+
+        if (!hasUpdates) {
+            throw new ApiError('At least one field (name or email) must be provided for update', 400);
+        }
+
+        await user.save();
+
+        logger.info({ userId }, 'User profile updated successfully');
+
+        return toPublicUser(user);
+    } catch (error: unknown) {
+        if (error instanceof ApiError) {
+            throw error;
+        }
+
+        if (isDuplicateKeyError(error)) {
+            throw new ApiError('Email is already registered', 409);
+        }
+
+        logger.error({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'Profile update failed');
+        throw new ApiError('Profile update failed', 500);
+    }
+}
+
+export async function changePassword(userId: string, input: ChangePasswordInput): Promise<void> {
+    try {
+        assertString(input.currentPassword, 'Current password');
+        if (input.currentPassword.trim().length === 0) {
+            throw new ApiError('Current password is required', 400);
+        }
+
+        validatePassword(input.newPassword);
+
+        if (bcrypt.truncates(input.newPassword)) {
+            throw new ApiError('Password exceeds the maximum length supported by bcrypt', 400);
+        }
+
+        const user = await User.findById(userId).select('+password');
+
+        if (user === null) {
+            throw new ApiError('Authenticated user not found', 401);
+        }
+
+        const currentPasswordMatches = await bcrypt.compare(input.currentPassword, user.password);
+
+        if (!currentPasswordMatches) {
+            logger.warn({ reason: 'incorrect_current_password', userId }, 'Password change failed');
+            throw new ApiError('Current password is incorrect', 401);
+        }
+
+        if (input.currentPassword === input.newPassword) {
+            throw new ApiError('New password must be different from current password', 400);
+        }
+
+        const hashedNewPassword = await bcrypt.hash(input.newPassword, BCRYPT_SALT_ROUNDS);
+
+        user.password = hashedNewPassword;
+        await user.save();
+
+        logger.info({ userId }, 'User password changed successfully');
+    } catch (error: unknown) {
+        if (error instanceof ApiError) {
+            throw error;
+        }
+
+        logger.error({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'Password change failed');
+        throw new ApiError('Password change failed', 500);
+    }
+}

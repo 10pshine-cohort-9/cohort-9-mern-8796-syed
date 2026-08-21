@@ -96,4 +96,26 @@ describe('NoteEditor Component', () => {
 
     expect(mockOnCancel).toHaveBeenCalledTimes(1);
   });
+
+  it('inserts markdown formatting tags when toolbar buttons are clicked', () => {
+    renderComponent('create', 'Title', 'sample text');
+
+    const boldBtn = screen.getByRole('button', { name: /bold text/i });
+    fireEvent.click(boldBtn);
+
+    const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+    expect(textarea.value).toContain('**');
+  });
+
+  it('automatically continues bullet list when Enter key is pressed', () => {
+    renderComponent('create', 'Title', '- First bullet item');
+
+    const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+    textarea.selectionStart = textarea.value.length;
+    textarea.selectionEnd = textarea.value.length;
+
+    fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter', charCode: 13 });
+
+    expect(textarea.value).toBe('- First bullet item\n- ');
+  });
 });

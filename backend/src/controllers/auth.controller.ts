@@ -1,7 +1,7 @@
 import type { RequestHandler } from 'express';
 
 import { ApiError } from '../utils/ApiError';
-import { getAuthenticatedUser, login, logout, register } from '../services/auth.service';
+import { changePassword, getAuthenticatedUser, login, logout, register, updateProfile } from '../services/auth.service';
 import { sendSuccess } from '../utils/ApiResponse';
 import { asyncHandler } from '../utils/asyncHandler';
 
@@ -14,6 +14,16 @@ type RegisterRequestBody = {
 type LoginRequestBody = {
     readonly email: string;
     readonly password: string;
+};
+
+type UpdateProfileRequestBody = {
+    readonly email?: string;
+    readonly name?: string;
+};
+
+type ChangePasswordRequestBody = {
+    readonly currentPassword: string;
+    readonly newPassword: string;
 };
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -60,6 +70,49 @@ function validateLoginPayload(body: unknown): LoginRequestBody {
     return { email, password };
 }
 
+function validateUpdateProfilePayload(body: unknown): UpdateProfileRequestBody {
+    if (!isObject(body)) {
+        throw new ApiError('Invalid request body', 400);
+    }
+
+    const { email, name } = body;
+
+    if (email === undefined && name === undefined) {
+        throw new ApiError('At least one field (name or email) must be provided for update', 400);
+    }
+
+    if (name !== undefined && typeof name !== 'string') {
+        throw new ApiError('Name must be a string', 400);
+    }
+
+    if (email !== undefined && typeof email !== 'string') {
+        throw new ApiError('Email must be a string', 400);
+    }
+
+    return {
+        email: email as string | undefined,
+        name: name as string | undefined,
+    };
+}
+
+function validateChangePasswordPayload(body: unknown): ChangePasswordRequestBody {
+    if (!isObject(body)) {
+        throw new ApiError('Invalid request body', 400);
+    }
+
+    const { currentPassword, newPassword } = body;
+
+    if (typeof currentPassword !== 'string' || currentPassword.trim().length === 0) {
+        throw new ApiError('Current password is required', 400);
+    }
+
+    if (typeof newPassword !== 'string' || newPassword.trim().length === 0) {
+        throw new ApiError('New password is required', 400);
+    }
+
+    return { currentPassword, newPassword };
+}
+
 const registerHandler: RequestHandler<unknown, unknown, RegisterRequestBody> = async (req, res) => {
     try {
         const payload = validateRegisterPayload(req.body);
@@ -100,6 +153,42 @@ const meHandler: RequestHandler = async (req, res) => {
     }
 };
 
+const updateProfileHandler: RequestHandler<unknown, unknown, UpdateProfileRequestBody> = async (req, res) => {
+    const userId = req.authenticatedUser?.userId;
+
+    if (userId === undefined) {
+        throw new ApiError('Authentication required', 401);
+    }
+
+    try {
+        const payload = validateUpdateProfilePayload(req.body);
+        const user = await updateProfile(userId, payload);
+
+        return sendSuccess(res, 200, 'Profile updated successfully', {
+            user,
+        });
+    } catch (error: unknown) {
+        throw error;
+    }
+};
+
+const changePasswordHandler: RequestHandler<unknown, unknown, ChangePasswordRequestBody> = async (req, res) => {
+    const userId = req.authenticatedUser?.userId;
+
+    if (userId === undefined) {
+        throw new ApiError('Authentication required', 401);
+    }
+
+    try {
+        const payload = validateChangePasswordPayload(req.body);
+        await changePassword(userId, payload);
+
+        return sendSuccess(res, 200, 'Password changed successfully');
+    } catch (error: unknown) {
+        throw error;
+    }
+};
+
 const logoutHandler: RequestHandler = async (req, res) => {
     const userId = req.authenticatedUser?.userId;
     const tokenId = req.authenticatedUser?.tokenId;
@@ -122,3 +211,5 @@ export const registerUser = asyncHandler(registerHandler);
 export const loginUser = asyncHandler(loginHandler);
 export const logoutUser = asyncHandler(logoutHandler);
 export const getAuthenticatedUserController = asyncHandler(meHandler);
+export const updateProfileController = asyncHandler(updateProfileHandler);
+export const changePasswordController = asyncHandler(changePasswordHandler);

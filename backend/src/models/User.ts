@@ -1,9 +1,9 @@
 import { Schema, model, type HydratedDocument } from 'mongoose';
 
 export type UserAttributes = {
-    readonly email: string;
-    readonly name: string;
-    readonly password: string;
+    email: string;
+    name: string;
+    password: string;
 };
 
 export type UserDocument = HydratedDocument<

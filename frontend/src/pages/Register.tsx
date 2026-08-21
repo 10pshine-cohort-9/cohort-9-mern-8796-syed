@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { PasswordInput } from '../components/PasswordInput';
+import { PasswordStrengthIndicator } from '../components/PasswordStrengthIndicator';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -11,13 +13,24 @@ export const Register: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
-  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{
+    name?: string;
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validateForm = (): boolean => {
-    const newErrors: { name?: string; email?: string; password?: string } = {};
+    const newErrors: {
+      name?: string;
+      email?: string;
+      password?: string;
+      confirmPassword?: string;
+    } = {};
 
     if (!name.trim()) {
       newErrors.name = 'Name is required';
@@ -33,6 +46,10 @@ export const Register: React.FC = () => {
       newErrors.password = 'Password is required';
     } else if (password.length < 8) {
       newErrors.password = 'Password must be at least 8 characters long';
+    }
+
+    if (confirmPassword && password !== confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
     }
 
     setErrors(newErrors);
@@ -100,7 +117,12 @@ export const Register: React.FC = () => {
               className={`form-input ${errors.name ? 'is-invalid' : ''}`}
               placeholder="John Doe"
               value={name}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setName(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>): void => {
+                setName(e.target.value);
+                if (errors.name) {
+                  setErrors((prev) => ({ ...prev, name: undefined }));
+                }
+              }}
               disabled={isSubmitting}
               aria-invalid={!!errors.name}
               aria-describedby={errors.name ? 'name-error' : undefined}
@@ -118,7 +140,12 @@ export const Register: React.FC = () => {
               className={`form-input ${errors.email ? 'is-invalid' : ''}`}
               placeholder="john@example.com"
               value={email}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setEmail(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>): void => {
+                setEmail(e.target.value);
+                if (errors.email) {
+                  setErrors((prev) => ({ ...prev, email: undefined }));
+                }
+              }}
               disabled={isSubmitting}
               aria-invalid={!!errors.email}
               aria-describedby={errors.email ? 'email-error' : undefined}
@@ -130,18 +157,48 @@ export const Register: React.FC = () => {
             <label className="form-label" htmlFor="password">
               Password
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
-              className={`form-input ${errors.password ? 'is-invalid' : ''}`}
               placeholder="At least 8 characters"
               value={password}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setPassword(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>): void => {
+                setPassword(e.target.value);
+                if (errors.password) {
+                  setErrors((prev) => ({ ...prev, password: undefined }));
+                }
+              }}
               disabled={isSubmitting}
-              aria-invalid={!!errors.password}
-              aria-describedby={errors.password ? 'password-error' : undefined}
+              error={errors.password}
+              autoComplete="new-password"
             />
             {errors.password && <div id="password-error" className="field-error">{errors.password}</div>}
+
+            <PasswordStrengthIndicator password={password} />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="confirm-password">
+              Confirm Password
+            </label>
+            <PasswordInput
+              id="confirm-password"
+              placeholder="Confirm your password"
+              value={confirmPassword}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>): void => {
+                setConfirmPassword(e.target.value);
+                if (errors.confirmPassword) {
+                  setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+                }
+              }}
+              disabled={isSubmitting}
+              error={errors.confirmPassword}
+              autoComplete="new-password"
+            />
+            {errors.confirmPassword && (
+              <div id="confirm-password-error" className="field-error">
+                {errors.confirmPassword}
+              </div>
+            )}
           </div>
 
           <button
@@ -170,3 +227,4 @@ export const Register: React.FC = () => {
     </div>
   );
 };
+

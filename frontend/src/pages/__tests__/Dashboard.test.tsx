@@ -155,4 +155,28 @@ describe('Dashboard Component', () => {
       throw new Error(`Dashboard delete note test failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   });
+
+  it('triggers notesApi.list with updated sort options when sort dropdown changes', async () => {
+    vi.mocked(notesApi.list).mockResolvedValue({
+      notes: mockNotes,
+      total: 2,
+      page: 1,
+      limit: 10,
+      totalPages: 1,
+    });
+
+    renderComponent();
+
+    const sortSelect = await screen.findByLabelText(/sort notes by/i);
+    fireEvent.change(sortSelect, { target: { value: 'title:asc' } });
+
+    await waitFor(() => {
+      expect(notesApi.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sortBy: 'title',
+          sortOrder: 'asc',
+        })
+      );
+    });
+  });
 });

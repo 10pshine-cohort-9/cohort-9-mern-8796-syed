@@ -10,6 +10,8 @@ interface AuthContextType {
   login: (input: LoginInput) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (user: User) => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +36,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return (): void => setOnUnauthorizedCallback(null);
   }, []);
 
+  const refreshUser = async (): Promise<void> => {
+    const storedToken = localStorage.getItem('token');
+    if (!storedToken) {
+      setUser(null);
+      setToken(null);
+      return;
+    }
+
+    try {
+      const response = await authApi.getMe();
+      setUser(response.user);
+      setToken(storedToken);
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.status === 401) {
+        handleUnauthorized();
+      }
+    }
+  };
+
   useEffect((): void => {
     const initializeAuth = async (): Promise<void> => {
       const storedToken = localStorage.getItem('token');
@@ -57,6 +78,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     initializeAuth();
   }, []);
+
+  const updateUser = (updatedUser: User): void => {
+    setUser(updatedUser);
+  };
 
   const login = async (input: LoginInput): Promise<void> => {
     try {
@@ -112,6 +137,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         login,
         register,
         logout,
+        updateUser,
+        refreshUser,
       }}
     >
       {children}

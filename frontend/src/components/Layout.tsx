@@ -1,50 +1,25 @@
-import React, { useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Link, Outlet } from 'react-router-dom';
+import { FiBookOpen } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
+import { ProfileDropdown } from './ProfileDropdown';
 
 export const Layout: React.FC = () => {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const [loggingOut, setLoggingOut] = useState(false);
-
-  const handleLogout = async (): Promise<void> => {
-    setLoggingOut(true);
-    try {
-      await logout();
-      navigate('/login', { replace: true });
-    } catch {
-      // Handled by context
-    } finally {
-      setLoggingOut(false);
-    }
-  };
 
   return (
     <div className="app-container">
       <header className="app-header">
-        <div className="header-brand">
-          <div className="brand-icon">📝</div>
-          <span className="brand-name">Notes App</span>
-        </div>
+        <Link to="/" className="header-brand header-brand-link" aria-label="NoteNest Home">
+          <div className="brand-icon">
+            <FiBookOpen aria-hidden="true" />
+          </div>
+          <span className="brand-name">NoteNest</span>
+        </Link>
 
         {user && (
           <div className="header-user-actions">
-            <div className="user-profile-badge">
-              <div className="user-avatar">{user.name.charAt(0).toUpperCase()}</div>
-              <div className="user-details">
-                <span className="user-name">{user.name}</span>
-                <span className="user-email">{user.email}</span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={handleLogout}
-              disabled={loggingOut}
-            >
-              {loggingOut ? 'Logging out...' : 'Logout'}
-            </button>
+            <ProfileDropdown user={user} onLogout={logout} />
           </div>
         )}
       </header>
