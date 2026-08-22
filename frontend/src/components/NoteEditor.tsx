@@ -106,8 +106,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     html = html.replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>');
 
     // Task lists
-    html = html.replace(/^- \[ \] (.*$)/gim, '<ul><li><input type="checkbox" disabled /> $1</li></ul>');
-    html = html.replace(/^- \[x\] (.*$)/gim, '<ul><li><input type="checkbox" checked disabled /> $1</li></ul>');
+    html = html.replace(/^\s*-\s*\[\s*\]\s+(.*$)/gim, '<ul><li><input type="checkbox" disabled /> $1</li></ul>');
+    html = html.replace(/^\s*-\s*\[[xX]\]\s+(.*$)/gim, '<ul><li><input type="checkbox" checked disabled /> $1</li></ul>');
 
     // Bullet Lists
     html = html.replace(/^- (.*$)/gim, '<ul><li>$1</li></ul>');

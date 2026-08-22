@@ -389,6 +389,7 @@ describe('Auth Service (auth.service.ts)', () => {
                 const mockUser = {
                     _id: validUserId,
                     password: currentHashed,
+                    credentialVersion: 0,
                     passwordChangedAt: undefined as Date | undefined,
                     save: sinon.stub().resolves(),
                 };
@@ -403,6 +404,7 @@ describe('Auth Service (auth.service.ts)', () => {
                 });
 
                 expect(mockUser.save.calledOnce).to.be.true;
+                expect(mockUser.credentialVersion).to.equal(1);
                 expect(mockUser.passwordChangedAt).to.be.an.instanceOf(Date);
                 const matchesNew = await bcrypt.compare('NewStrongPassword456!', mockUser.password);
                 expect(matchesNew).to.be.true;

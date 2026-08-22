@@ -225,7 +225,12 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
                 lean: sinon.stub().resolves(null),
             } as unknown as ReturnType<typeof TokenRevocation.findOne>);
 
-            sinon.stub(User, 'findById').resolves(mockUser as unknown as UserDocument);
+            const queryObj = {
+                select: sinon.stub().returnsThis(),
+                lean: sinon.stub().resolves(mockUser),
+                then: (resolve: (val: unknown) => void) => resolve(mockUser),
+            };
+            sinon.stub(User, 'findById').callsFake(() => queryObj as unknown as ReturnType<typeof User.findById>);
 
             let res: SupertestResponse;
             try {
@@ -285,7 +290,12 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
                 select: sinon.stub().returnsThis(),
                 lean: sinon.stub().resolves(null),
             } as unknown as ReturnType<typeof TokenRevocation.findOne>);
-            sinon.stub(User, 'findById').resolves(mockUser as unknown as UserDocument);
+            const queryObj = {
+                select: sinon.stub().returnsThis(),
+                lean: sinon.stub().resolves(mockUser),
+                then: (resolve: (val: unknown) => void) => resolve(mockUser),
+            };
+            sinon.stub(User, 'findById').callsFake(() => queryObj as unknown as ReturnType<typeof User.findById>);
             const findOneAndUpdateStub = sinon.stub(TokenRevocation, 'findOneAndUpdate').returns({
                 exec: sinon.stub().resolves({}),
             } as unknown as ReturnType<typeof TokenRevocation.findOneAndUpdate>);

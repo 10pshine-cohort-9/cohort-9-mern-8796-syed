@@ -15,22 +15,23 @@ describe('JWT Utility (jwt.ts)', () => {
     });
 
     describe('signAuthToken', () => {
-        it('should generate a valid JWT string containing userId (sub) and random UUID (jti)', () => {
+        it('should generate a valid JWT string containing userId (sub), random UUID (jti), and credentialVersion', () => {
             const userId = '507f1f77bcf86cd799439011';
-            const token = signAuthToken(userId);
+            const token = signAuthToken(userId, 1);
 
             expect(token).to.be.a('string');
 
             const decoded = jwt.verify(token, env.jwtSecret) as jwt.JwtPayload;
             expect(decoded.sub).to.equal(userId);
             expect(decoded.jti).to.be.a('string').that.is.not.empty;
+            expect(decoded.credentialVersion).to.equal(1);
         });
     });
 
     describe('verifyAuthToken', () => {
-        it('should verify and return the token payload for a valid, non-revoked token', async () => {
+        it('should verify and return the token payload for a valid, non-revoked token with matching credentialVersion', async () => {
             const userId = '507f1f77bcf86cd799439011';
-            const token = signAuthToken(userId);
+            const token = signAuthToken(userId, 0);
 
             const findOneStub = sinon.stub(TokenRevocation, 'findOne').returns({
                 select: sinon.stub().returnsThis(),
@@ -39,7 +40,7 @@ describe('JWT Utility (jwt.ts)', () => {
 
             sinon.stub(User, 'findById').returns({
                 select: sinon.stub().returnsThis(),
-                lean: sinon.stub().resolves(null),
+                lean: sinon.stub().resolves({ credentialVersion: 0 }),
             } as unknown as ReturnType<typeof User.findById>);
 
             let payload: AuthTokenPayload;
@@ -51,6 +52,7 @@ describe('JWT Utility (jwt.ts)', () => {
 
             expect(payload.sub).to.equal(userId);
             expect(payload.jti).to.be.a('string');
+            expect(payload.credentialVersion).to.equal(0);
             expect(findOneStub.calledOnce).to.be.true;
         });
 
@@ -67,12 +69,12 @@ describe('JWT Utility (jwt.ts)', () => {
             }
         });
 
-        it('should throw ApiError when token payload is missing required sub or jti fields', async () => {
-            const invalidPayloadToken = jwt.sign({ foo: 'bar' }, env.jwtSecret);
+        it('should throw ApiError when token payload is missing required sub, jti, or credentialVersion fields', async () => {
+            const invalidPayloadToken = jwt.sign({ sub: '507f1f77bcf86cd799439011', jti: 'test-uuid' }, env.jwtSecret);
 
             try {
                 await verifyAuthToken(invalidPayloadToken);
-                expect.fail('Expected verifyAuthToken to throw');
+                expect.fail('Expected verifyAuthToken to throw for missing credentialVersion');
             } catch (err: unknown) {
                 expect(err).to.be.instanceOf(ApiError);
                 if (err instanceof ApiError) {
@@ -84,7 +86,7 @@ describe('JWT Utility (jwt.ts)', () => {
 
         it('should throw ApiError with 401 when the token has been revoked', async () => {
             const userId = '507f1f77bcf86cd799439011';
-            const token = signAuthToken(userId);
+            const token = signAuthToken(userId, 0);
             const revokedId = new Types.ObjectId();
 
             sinon.stub(TokenRevocation, 'findOne').returns({
@@ -104,29 +106,128 @@ describe('JWT Utility (jwt.ts)', () => {
             }
         });
 
-        it('should throw ApiError with 401 when token was issued before password change', async () => {
+        it('should reject old token issued in the same Unix second when credential version was incremented', async () => {
             const userId = '507f1f77bcf86cd799439011';
-            const token = signAuthToken(userId);
+            // Token created with version 0
+            const oldToken = signAuthToken(userId, 0);
 
             sinon.stub(TokenRevocation, 'findOne').returns({
                 select: sinon.stub().returnsThis(),
                 lean: sinon.stub().resolves(null),
             } as unknown as ReturnType<typeof TokenRevocation.findOne>);
 
-            const futurePasswordChangedAt = new Date(Date.now() + 10000);
+            // User's version incremented to 1 in the exact same second
             sinon.stub(User, 'findById').returns({
                 select: sinon.stub().returnsThis(),
-                lean: sinon.stub().resolves({ passwordChangedAt: futurePasswordChangedAt }),
+                lean: sinon.stub().resolves({ credentialVersion: 1 }),
             } as unknown as ReturnType<typeof User.findById>);
 
             try {
-                await verifyAuthToken(token);
-                expect.fail('Expected verifyAuthToken to throw for token issued before password change');
+                await verifyAuthToken(oldToken);
+                expect.fail('Expected verifyAuthToken to reject old token with outdated credentialVersion');
             } catch (err: unknown) {
                 expect(err).to.be.instanceOf(ApiError);
                 if (err instanceof ApiError) {
                     expect(err.statusCode).to.equal(401);
                     expect(err.message).to.equal('Authentication token revoked');
+                }
+            }
+        });
+
+        it('should accept new token issued with incremented credential version', async () => {
+            const userId = '507f1f77bcf86cd799439011';
+            // New token created with version 1
+            const newToken = signAuthToken(userId, 1);
+
+            sinon.stub(TokenRevocation, 'findOne').returns({
+                select: sinon.stub().returnsThis(),
+                lean: sinon.stub().resolves(null),
+            } as unknown as ReturnType<typeof TokenRevocation.findOne>);
+
+            sinon.stub(User, 'findById').returns({
+                select: sinon.stub().returnsThis(),
+                lean: sinon.stub().resolves({ credentialVersion: 1 }),
+            } as unknown as ReturnType<typeof User.findById>);
+
+            const payload = await verifyAuthToken(newToken);
+            expect(payload.sub).to.equal(userId);
+            expect(payload.credentialVersion).to.equal(1);
+        });
+
+        it('should reject token when credential version differs from user current version', async () => {
+            const userId = '507f1f77bcf86cd799439011';
+            const token = signAuthToken(userId, 0);
+
+            sinon.stub(TokenRevocation, 'findOne').returns({
+                select: sinon.stub().returnsThis(),
+                lean: sinon.stub().resolves(null),
+            } as unknown as ReturnType<typeof TokenRevocation.findOne>);
+
+            sinon.stub(User, 'findById').returns({
+                select: sinon.stub().returnsThis(),
+                lean: sinon.stub().resolves({ credentialVersion: 2 }),
+            } as unknown as ReturnType<typeof User.findById>);
+
+            try {
+                await verifyAuthToken(token);
+                expect.fail('Expected verifyAuthToken to throw for credential version mismatch');
+            } catch (err: unknown) {
+                expect(err).to.be.instanceOf(ApiError);
+                if (err instanceof ApiError) {
+                    expect(err.statusCode).to.equal(401);
+                    expect(err.message).to.equal('Authentication token revoked');
+                }
+            }
+        });
+
+        it('should fail closed with 401 ApiError when user lookup throws unexpected database error', async () => {
+            const userId = '507f1f77bcf86cd799439011';
+            const token = signAuthToken(userId, 0);
+
+            sinon.stub(TokenRevocation, 'findOne').returns({
+                select: sinon.stub().returnsThis(),
+                lean: sinon.stub().resolves(null),
+            } as unknown as ReturnType<typeof TokenRevocation.findOne>);
+
+            sinon.stub(User, 'findById').returns({
+                select: sinon.stub().returnsThis(),
+                lean: sinon.stub().rejects(new Error('Unexpected Mongo Database Connection Failure')),
+            } as unknown as ReturnType<typeof User.findById>);
+
+            try {
+                await verifyAuthToken(token);
+                expect.fail('Expected verifyAuthToken to fail closed on database lookup error');
+            } catch (err: unknown) {
+                expect(err).to.be.instanceOf(ApiError);
+                if (err instanceof ApiError) {
+                    expect(err.statusCode).to.equal(401);
+                    expect(err.message).to.equal('Authentication failed');
+                }
+            }
+        });
+
+        it('should rethrow ApiError intact if user lookup throws an ApiError', async () => {
+            const userId = '507f1f77bcf86cd799439011';
+            const token = signAuthToken(userId, 0);
+
+            sinon.stub(TokenRevocation, 'findOne').returns({
+                select: sinon.stub().returnsThis(),
+                lean: sinon.stub().resolves(null),
+            } as unknown as ReturnType<typeof TokenRevocation.findOne>);
+
+            sinon.stub(User, 'findById').returns({
+                select: sinon.stub().returnsThis(),
+                lean: sinon.stub().rejects(new ApiError('Custom ApiError', 401)),
+            } as unknown as ReturnType<typeof User.findById>);
+
+            try {
+                await verifyAuthToken(token);
+                expect.fail('Expected verifyAuthToken to rethrow ApiError');
+            } catch (err: unknown) {
+                expect(err).to.be.instanceOf(ApiError);
+                if (err instanceof ApiError) {
+                    expect(err.statusCode).to.equal(401);
+                    expect(err.message).to.equal('Custom ApiError');
                 }
             }
         });

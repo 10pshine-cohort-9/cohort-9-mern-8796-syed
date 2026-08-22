@@ -144,4 +144,16 @@ describe('NoteEditor Component', () => {
 
     expect(textarea.value).toBe('plain text');
   });
+
+  it('renders both lowercase [x] and uppercase [X] task markers as checked checkboxes in preview tab', () => {
+    renderComponent('create', 'Title', '- [x] task one\n- [X] task two');
+
+    const previewTab = screen.getByRole('tab', { name: /preview/i });
+    fireEvent.click(previewTab);
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    expect(checkboxes).toHaveLength(2);
+    expect(checkboxes[0]).toBeChecked();
+    expect(checkboxes[1]).toBeChecked();
+  });
 });

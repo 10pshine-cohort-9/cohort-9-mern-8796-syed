@@ -5,6 +5,7 @@ export type UserAttributes = {
     name: string;
     password: string;
     passwordChangedAt?: Date;
+    credentialVersion: number;
 };
 
 export type UserDocument = HydratedDocument<
@@ -38,6 +39,11 @@ const userSchema = new Schema<UserAttributes>(
         },
         passwordChangedAt: {
             type: Date,
+        },
+        credentialVersion: {
+            default: 0,
+            required: true,
+            type: Number,
         },
     },
     {

@@ -110,7 +110,7 @@ export async function register(input: RegistrationInput): Promise<AuthResult> {
                 name,
                 password: hashedPassword,
             });
-            const token = signAuthToken(user.id);
+            const token = signAuthToken(user.id, user.credentialVersion ?? 0);
 
             logger.info({ userId: user.id }, 'User registered successfully');
 
@@ -157,7 +157,7 @@ export async function login(input: AuthCredentials): Promise<AuthResult> {
             throw new ApiError('Invalid email or password', 401);
         }
 
-        const token = signAuthToken(user.id);
+        const token = signAuthToken(user.id, user.credentialVersion ?? 0);
 
         logger.info({ userId: user.id }, 'User logged in successfully');
 
@@ -341,6 +341,7 @@ export async function changePassword(userId: string, input: ChangePasswordInput)
         const hashedNewPassword = await bcrypt.hash(input.newPassword, BCRYPT_SALT_ROUNDS);
 
         user.password = hashedNewPassword;
+        user.credentialVersion = (user.credentialVersion ?? 0) + 1;
         user.passwordChangedAt = new Date();
         await user.save();
 
