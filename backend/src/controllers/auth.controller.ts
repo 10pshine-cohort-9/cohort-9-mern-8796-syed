@@ -181,9 +181,9 @@ const changePasswordHandler: RequestHandler<unknown, unknown, ChangePasswordRequ
 
     try {
         const payload = validateChangePasswordPayload(req.body);
-        await changePassword(userId, payload);
+        const result = await changePassword(userId, payload);
 
-        return sendSuccess(res, 200, 'Password changed successfully');
+        return sendSuccess(res, 200, 'Password changed successfully', result);
     } catch (error: unknown) {
         throw error;
     }

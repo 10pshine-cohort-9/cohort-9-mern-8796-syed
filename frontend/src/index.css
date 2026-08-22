@@ -851,6 +851,12 @@ body {
   background-color: rgba(99, 102, 241, 0.1);
 }
 
+.profile-dropdown-trigger:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
 .dropdown-chevron {
   font-size: 0.75rem;
   color: var(--text-muted);
@@ -964,9 +970,23 @@ body {
   color: var(--primary);
 }
 
+.dropdown-item:focus-visible {
+  outline: none;
+  background-color: rgba(255, 255, 255, 0.06);
+  color: var(--primary);
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
 .dropdown-item-danger:hover {
   background-color: var(--danger-light);
   color: #fca5a5;
+}
+
+.dropdown-item-danger:focus-visible {
+  outline: none;
+  background-color: var(--danger-light);
+  color: #fca5a5;
+  box-shadow: inset 0 0 0 2px var(--danger);
 }
 
 .dropdown-item-icon {

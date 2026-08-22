@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import DOMPurify from 'dompurify';
 import {
   FiEdit3,
@@ -129,12 +129,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     html = html.replace(/^\s*-\s*\[\s*\]\s+(.*$)/gim, '<ul><li><input type="checkbox" disabled /> $1</li></ul>');
     html = html.replace(/^\s*-\s*\[\s*[xX]\s*\]\s+(.*$)/gim, '<ul><li><input type="checkbox" checked disabled /> $1</li></ul>');
 
-    // Bullet Lists
-    html = html.replace(/^- (.*$)/gim, '<ul><li>$1</li></ul>');
-    html = html.replace(/^\* (.*$)/gim, '<ul><li>$1</li></ul>');
+    // Bullet Lists (accepting optional leading whitespace)
+    html = html.replace(/^\s*-\s+(.*$)/gim, '<ul><li>$1</li></ul>');
+    html = html.replace(/^\s*\*\s+(.*$)/gim, '<ul><li>$1</li></ul>');
 
-    // Numbered Lists
-    html = html.replace(/^\d+\. (.*$)/gim, '<ol><li>$1</li></ol>');
+    // Numbered Lists (accepting optional leading whitespace)
+    html = html.replace(/^\s*\d+\.\s+(.*$)/gim, '<ol><li>$1</li></ol>');
 
     // Combine adjacent lists
     html = html.replace(/<\/ul>\s*<ul>/g, '');
@@ -205,6 +205,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     });
   };
 
+  const previewHtml = useMemo(() => {
+    if (activeTab !== 'preview') return '';
+    return parseMarkdownToHtml(content);
+  }, [content, activeTab]);
+
   const formatText = (prefix: string, suffix: string = ''): void => {
     const textarea = document.getElementById('note-content-input') as HTMLTextAreaElement | null;
     if (!textarea) return;
@@ -241,7 +246,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     cleanedText = cleanedText.replace(/\*\*([^*]+)\*\*/g, '$1');
     cleanedText = cleanedText.replace(/(^|[^*])\*([^*]+)\*([^*]|$)/g, '$1$2$3');
     cleanedText = cleanedText.replace(/<\/?u>/gi, '');
-    cleanedText = cleanedText.replace(/<\/?[^>]+(>|$)/g, '');
+    cleanedText = cleanedText.replace(/<\/?[a-zA-Z][a-zA-Z0-9]*(?=[\s/>]|$)[^>]*>/g, '');
     cleanedText = cleanedText.replace(/`([^`]+)`/g, '$1');
     cleanedText = cleanedText.replace(/~~([^~]+)~~/g, '$1');
     cleanedText = cleanedText.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
@@ -268,6 +273,37 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     }, 0);
   };
 
+  // Shared helper for list continuation and termination
+  const handleListContinuation = (
+    textarea: HTMLTextAreaElement,
+    lineStart: number,
+    selectionStart: number,
+    selectionEnd: number,
+    value: string,
+    contentAfter: string,
+    nextPrefix: string,
+  ): void => {
+    if (!contentAfter) {
+      // Empty list item -> terminate list
+      const newContent = value.substring(0, lineStart) + value.substring(selectionEnd);
+      setContent(newContent);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(lineStart, lineStart);
+      }, 0);
+    } else {
+      // Continue list
+      const addition = `\n${nextPrefix}`;
+      const newContent = value.substring(0, selectionStart) + addition + value.substring(selectionEnd);
+      setContent(newContent);
+      setTimeout(() => {
+        textarea.focus();
+        const newPos = selectionStart + addition.length;
+        textarea.setSelectionRange(newPos, newPos);
+      }, 0);
+    }
+  };
+
   // Keyboard shortcut & automatic list continuation on Enter
   const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     const textarea = e.currentTarget;
@@ -283,27 +319,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       if (taskMatch) {
         e.preventDefault();
         const contentAfter = taskMatch[2].trim();
-
-        if (!contentAfter) {
-          // Empty task item -> terminate task list
-          const newContent = value.substring(0, lineStart) + value.substring(selectionEnd);
-          setContent(newContent);
-          setTimeout(() => {
-            textarea.focus();
-            textarea.setSelectionRange(lineStart, lineStart);
-          }, 0);
-        } else {
-          // Continue task list
-          const continuationPrefix = taskMatch[1].replace(/-\s*\[\s*[xX]?\s*\]\s*$/, '- [ ] ');
-          const addition = `\n${continuationPrefix}`;
-          const newContent = value.substring(0, selectionStart) + addition + value.substring(selectionEnd);
-          setContent(newContent);
-          setTimeout(() => {
-            textarea.focus();
-            const newPos = selectionStart + addition.length;
-            textarea.setSelectionRange(newPos, newPos);
-          }, 0);
-        }
+        const nextPrefix = taskMatch[1].replace(/-\s*\[\s*[xX]?\s*\]\s*$/, '- [ ] ');
+        handleListContinuation(textarea, lineStart, selectionStart, selectionEnd, value, contentAfter, nextPrefix);
         return;
       }
 
@@ -311,28 +328,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       const bulletMatch = currentLine.match(/^(\s*[-*]\s+)(.*)$/);
       if (bulletMatch) {
         e.preventDefault();
-        const prefix = bulletMatch[1];
         const contentAfter = bulletMatch[2].trim();
-
-        if (!contentAfter) {
-          // Empty bullet item -> terminate list
-          const newContent = value.substring(0, lineStart) + value.substring(selectionEnd);
-          setContent(newContent);
-          setTimeout(() => {
-            textarea.focus();
-            textarea.setSelectionRange(lineStart, lineStart);
-          }, 0);
-        } else {
-          // Continue bullet list
-          const addition = `\n${prefix}`;
-          const newContent = value.substring(0, selectionStart) + addition + value.substring(selectionEnd);
-          setContent(newContent);
-          setTimeout(() => {
-            textarea.focus();
-            const newPos = selectionStart + addition.length;
-            textarea.setSelectionRange(newPos, newPos);
-          }, 0);
-        }
+        const nextPrefix = bulletMatch[1];
+        handleListContinuation(textarea, lineStart, selectionStart, selectionEnd, value, contentAfter, nextPrefix);
         return;
       }
 
@@ -344,26 +342,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         const num = parseInt(numMatch[2], 10);
         const dotSpace = numMatch[3];
         const contentAfter = numMatch[4].trim();
-
-        if (!contentAfter) {
-          // Empty numbered item -> terminate list
-          const newContent = value.substring(0, lineStart) + value.substring(selectionEnd);
-          setContent(newContent);
-          setTimeout(() => {
-            textarea.focus();
-            textarea.setSelectionRange(lineStart, lineStart);
-          }, 0);
-        } else {
-          // Continue numbered list
-          const addition = `\n${indent}${num + 1}${dotSpace}`;
-          const newContent = value.substring(0, selectionStart) + addition + value.substring(selectionEnd);
-          setContent(newContent);
-          setTimeout(() => {
-            textarea.focus();
-            const newPos = selectionStart + addition.length;
-            textarea.setSelectionRange(newPos, newPos);
-          }, 0);
-        }
+        const nextPrefix = `${indent}${num + 1}${dotSpace}`;
+        handleListContinuation(textarea, lineStart, selectionStart, selectionEnd, value, contentAfter, nextPrefix);
         return;
       }
     }
@@ -627,7 +607,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             <span className="form-label">Content Preview</span>
             <div className="note-preview-box">
               {content.trim() ? (
-                <div dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(content) }} />
+                <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
               ) : (
                 <em className="text-muted">Nothing to preview yet.</em>
               )}

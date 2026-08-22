@@ -110,8 +110,8 @@ export const authApi = {
     });
   },
 
-  changePassword: async (input: ChangePasswordInput): Promise<void> => {
-    return request<void>('/auth/change-password', {
+  changePassword: async (input: ChangePasswordInput): Promise<{ token: string }> => {
+    return request<{ token: string }>('/auth/change-password', {
       method: 'PUT',
       body: JSON.stringify(input),
     });

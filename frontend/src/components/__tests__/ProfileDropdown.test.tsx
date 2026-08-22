@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { ProfileDropdown } from '../ProfileDropdown';
@@ -80,7 +80,10 @@ describe('ProfileDropdown Component', () => {
     const logoutBtn = screen.getByRole('menuitem', { name: /logout/i });
     fireEvent.click(logoutBtn);
 
-    expect(mockLogout).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mockLogout).toHaveBeenCalledTimes(1);
+      expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true });
+    });
   });
 
   it('closes dropdown when Escape key is pressed', () => {

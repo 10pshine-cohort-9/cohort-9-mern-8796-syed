@@ -24,6 +24,7 @@ describe('Profile Page Component', () => {
     email: 'jane@example.com',
   };
   const mockUpdateUser = vi.fn();
+  const mockUpdateToken = vi.fn();
   const mockRefreshUser = vi.fn();
 
   beforeEach(() => {
@@ -37,6 +38,7 @@ describe('Profile Page Component', () => {
       register: vi.fn(),
       logout: vi.fn(),
       updateUser: mockUpdateUser,
+      updateToken: mockUpdateToken,
       refreshUser: mockRefreshUser,
     });
   });
@@ -91,8 +93,9 @@ describe('Profile Page Component', () => {
     expect(authApi.changePassword).not.toHaveBeenCalled();
   });
 
-  it('submits change password successfully and clears input fields', async () => {
-    vi.mocked(authApi.changePassword).mockResolvedValueOnce(undefined);
+  it('submits change password successfully, updates token session, and clears input fields', async () => {
+    const newToken = 'replacement-jwt-token';
+    vi.mocked(authApi.changePassword).mockResolvedValueOnce({ token: newToken });
 
     renderComponent();
 
@@ -113,6 +116,7 @@ describe('Profile Page Component', () => {
         currentPassword: 'OldPassword123!',
         newPassword: 'NewPassword456!',
       });
+      expect(mockUpdateToken).toHaveBeenCalledWith(newToken);
       expect(screen.getByText(/password changed successfully!/i)).toBeInTheDocument();
     });
   });

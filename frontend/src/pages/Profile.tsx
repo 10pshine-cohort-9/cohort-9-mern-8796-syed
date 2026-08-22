@@ -9,7 +9,7 @@ import { PasswordStrengthIndicator } from '../components/PasswordStrengthIndicat
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const Profile: React.FC = () => {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, updateToken } = useAuth();
 
   // Personal Info Form State
   const [name, setName] = useState<string>(user?.name || '');
@@ -130,10 +130,14 @@ export const Profile: React.FC = () => {
     setIsChangingPassword(true);
 
     try {
-      await authApi.changePassword({
+      const response = await authApi.changePassword({
         currentPassword,
         newPassword,
       });
+
+      if (response?.token) {
+        updateToken?.(response.token);
+      }
 
       setPasswordSuccessMessage('Password changed successfully! Keep your account credentials safe.');
       setCurrentPassword('');

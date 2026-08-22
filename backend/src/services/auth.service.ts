@@ -308,7 +308,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
     }
 }
 
-export async function changePassword(userId: string, input: ChangePasswordInput): Promise<void> {
+export async function changePassword(userId: string, input: ChangePasswordInput): Promise<{ token: string }> {
     try {
         assertString(input.currentPassword, 'Current password');
         if (input.currentPassword.trim().length === 0) {
@@ -369,7 +369,11 @@ export async function changePassword(userId: string, input: ChangePasswordInput)
         user.credentialVersion = currentCredentialVersion + 1;
         user.passwordChangedAt = now;
 
+        const token = signAuthToken(userId, user.credentialVersion);
+
         logger.info({ userId }, 'User password changed successfully');
+
+        return { token };
     } catch (error: unknown) {
         if (error instanceof ApiError) {
             throw error;

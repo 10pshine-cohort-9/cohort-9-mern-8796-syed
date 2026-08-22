@@ -21,6 +21,14 @@ describe('PasswordStrengthIndicator Component', () => {
     expect(screen.getByText('Fair')).toBeInTheDocument();
   });
 
+  it('renders Good badge for password satisfying four criteria', () => {
+    render(<PasswordStrengthIndicator password="Password123" />);
+
+    const badge = screen.getByText('Good');
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveClass('strength-badge', 'strength-good');
+  });
+
   it('renders Strong badge when all criteria are satisfied', () => {
     render(<PasswordStrengthIndicator password="Password123!" />);
 

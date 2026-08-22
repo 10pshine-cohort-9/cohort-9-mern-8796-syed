@@ -11,6 +11,7 @@ interface AuthContextType {
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: User) => void;
+  updateToken?: (token: string) => void;
   refreshUser: () => Promise<void>;
 }
 
@@ -83,6 +84,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(updatedUser);
   };
 
+  const updateToken = (newToken: string): void => {
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
+  };
+
   const login = async (input: LoginInput): Promise<void> => {
     try {
       const response = await authApi.login(input);
@@ -138,6 +144,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         register,
         logout,
         updateUser,
+        updateToken,
         refreshUser,
       }}
     >

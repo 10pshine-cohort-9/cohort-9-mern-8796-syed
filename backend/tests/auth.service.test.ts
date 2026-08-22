@@ -405,11 +405,12 @@ describe('Auth Service (auth.service.ts)', () => {
                     upsertedId: null,
                 } as Awaited<ReturnType<typeof User.updateOne>>);
 
-                await authService.changePassword(validUserId.toString(), {
+                const result = await authService.changePassword(validUserId.toString(), {
                     currentPassword: 'CurrentPass123!',
                     newPassword: 'NewStrongPassword456!',
                 });
 
+                expect(result).to.have.property('token').that.is.a('string');
                 expect(updateStub.calledOnce).to.be.true;
                 expect(mockUser.credentialVersion).to.equal(1);
                 expect(mockUser.passwordChangedAt).to.be.an.instanceOf(Date);

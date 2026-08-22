@@ -104,7 +104,7 @@ describe('NoteEditor Component', () => {
     fireEvent.click(boldBtn);
 
     const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
-    expect(textarea.value).toContain('**');
+    expect(textarea.value).toBe('**text**sample text');
   });
 
   it('automatically continues bullet list when Enter key is pressed', () => {
@@ -119,8 +119,8 @@ describe('NoteEditor Component', () => {
     expect(textarea.value).toBe('- First bullet item\n- ');
   });
 
-  it('preserves snake_case_name, C#, and 2 > 1 while removing actual formatting when clear formatting is clicked', () => {
-    const formattedContent = '**bold text** and snake_case_name with C# and 2 > 1';
+  it('removes HTML tags and markdown formatting without removing plain text comparison if (a<b) return', () => {
+    const formattedContent = '**bold text** and <b>html bold</b> with if (a<b) return and 2 > 1';
     renderComponent('create', 'Title', formattedContent);
 
     const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
@@ -130,7 +130,7 @@ describe('NoteEditor Component', () => {
     const clearBtn = screen.getByRole('button', { name: /clear formatting/i });
     fireEvent.click(clearBtn);
 
-    expect(textarea.value).toBe('bold text and snake_case_name with C# and 2 > 1');
+    expect(textarea.value).toBe('bold text and html bold with if (a<b) return and 2 > 1');
   });
 
   it('does not trigger Ctrl+B formatting when Alt key is pressed (AltGr protection)', () => {
@@ -194,5 +194,18 @@ describe('NoteEditor Component', () => {
     fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter', charCode: 13 });
 
     expect(textarea.value).toBe('  - [x] Indented task item\n  - [ ] ');
+  });
+
+  it('renders indented bullet and numbered lists correctly in preview tab', () => {
+    renderComponent('create', 'Title', '  - indented bullet item\n  * star bullet item\n  1. indented numbered item');
+
+    const previewTab = screen.getByRole('tab', { name: /preview/i });
+    fireEvent.click(previewTab);
+
+    expect(screen.getByText('indented bullet item')).toBeInTheDocument();
+    expect(screen.getByText('star bullet item')).toBeInTheDocument();
+    expect(screen.getByText('indented numbered item')).toBeInTheDocument();
+    expect(screen.getByText('indented bullet item').closest('ul')).not.toBeNull();
+    expect(screen.getByText('indented numbered item').closest('ol')).not.toBeNull();
   });
 });
