@@ -4,6 +4,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { Profile } from '../Profile';
 import * as AuthContextModule from '../../context/AuthContext';
 import { authApi } from '../../services/api';
+import { User } from '../../types';
 
 vi.mock('../../services/api', () => ({
   authApi: {
@@ -18,14 +19,14 @@ vi.mock('../../services/api', () => ({
 }));
 
 describe('Profile Page Component', () => {
-  const mockUser = {
+  const mockUser: User = {
     id: 'user-123',
     name: 'Jane Doe',
     email: 'jane@example.com',
   };
-  const mockUpdateUser = vi.fn();
-  const mockUpdateToken = vi.fn();
-  const mockRefreshUser = vi.fn();
+  const mockUpdateUser = vi.fn<(user: User) => void>();
+  const mockUpdateToken = vi.fn<(token: string) => void>();
+  const mockRefreshUser = vi.fn<() => Promise<void>>();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -63,7 +64,7 @@ describe('Profile Page Component', () => {
   });
 
   it('updates personal information and calls updateUser context', async () => {
-    const updatedUser = { id: 'user-123', name: 'Jane Smith', email: 'jane.smith@example.com' };
+    const updatedUser: User = { id: 'user-123', name: 'Jane Smith', email: 'jane.smith@example.com' };
     vi.mocked(authApi.updateProfile).mockResolvedValueOnce({ user: updatedUser });
 
     renderComponent();
@@ -72,14 +73,22 @@ describe('Profile Page Component', () => {
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'jane.smith@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
 
-    await waitFor(() => {
-      expect(authApi.updateProfile).toHaveBeenCalledWith({
-        name: 'Jane Smith',
-        email: 'jane.smith@example.com',
+    try {
+      await waitFor(() => {
+        expect(authApi.updateProfile).toHaveBeenCalledWith({
+          name: 'Jane Smith',
+          email: 'jane.smith@example.com',
+        });
+        expect(mockUpdateUser).toHaveBeenCalledWith(updatedUser);
+        expect(screen.getByText('Profile updated successfully!')).toBeInTheDocument();
       });
-      expect(mockUpdateUser).toHaveBeenCalledWith(updatedUser);
-      expect(screen.getByText('Profile updated successfully!')).toBeInTheDocument();
-    });
+    } catch (error) {
+      throw new Error(
+        `Profile personal-info update test failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   });
 
   it('validates change password form fields', async () => {
@@ -87,10 +96,45 @@ describe('Profile Page Component', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^change password$/i }));
 
-    expect(await screen.findByText('Current password is required')).toBeInTheDocument();
-    expect(screen.getByText('New password is required')).toBeInTheDocument();
-    expect(screen.getByText('Confirmation password is required')).toBeInTheDocument();
-    expect(authApi.changePassword).not.toHaveBeenCalled();
+    try {
+      expect(await screen.findByText('Current password is required')).toBeInTheDocument();
+      expect(screen.getByText('New password is required')).toBeInTheDocument();
+      expect(screen.getByText('Confirmation password is required')).toBeInTheDocument();
+      expect(authApi.changePassword).not.toHaveBeenCalled();
+    } catch (error) {
+      throw new Error(
+        `Profile password-validation test failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  });
+
+  it('validates password mismatch when new password and confirmation password differ', async () => {
+    renderComponent();
+
+    fireEvent.change(screen.getByPlaceholderText(/enter current password/i), {
+      target: { value: 'OldPassword123!' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/enter new strong password/i), {
+      target: { value: 'NewPassword456!' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/confirm new password/i), {
+      target: { value: 'DifferentPassword789!' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^change password$/i }));
+
+    try {
+      expect(await screen.findByText('Passwords do not match')).toBeInTheDocument();
+      expect(authApi.changePassword).not.toHaveBeenCalled();
+    } catch (error) {
+      throw new Error(
+        `Profile password-mismatch test failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   });
 
   it('submits change password successfully, updates token session, and clears input fields', async () => {
@@ -119,6 +163,9 @@ describe('Profile Page Component', () => {
         });
         expect(mockUpdateToken).toHaveBeenCalledWith(newToken);
         expect(screen.getByText(/password changed successfully!/i)).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/enter current password/i)).toHaveValue('');
+        expect(screen.getByPlaceholderText(/enter new strong password/i)).toHaveValue('');
+        expect(screen.getByPlaceholderText(/confirm new password/i)).toHaveValue('');
       });
     } catch (error) {
       throw new Error(

@@ -133,6 +133,31 @@ describe('NoteEditor Component', () => {
     expect(textarea.value).toBe('bold text and italic text and html bold with if (a<b) return and 2 * 3 * 4 and 2 > 1');
   });
 
+  it('preserves HTML-looking content inside backticks when clear formatting is applied', () => {
+    const contentWithCode = '**bold** and `<b>example</b>` and <i>italic</i>';
+    renderComponent('create', 'Title', contentWithCode);
+
+    const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+    textarea.selectionStart = 0;
+    textarea.selectionEnd = contentWithCode.length;
+
+    const clearBtn = screen.getByRole('button', { name: /clear formatting/i });
+    fireEvent.click(clearBtn);
+
+    expect(textarea.value).toBe('bold and `<b>example</b>` and italic');
+  });
+
+  it('does not merge lines into list items when dash is followed by newline', () => {
+    const rawContent = '-\nsome text';
+    renderComponent('create', 'Title', rawContent);
+
+    const previewTab = screen.getByRole('tab', { name: /preview/i });
+    fireEvent.click(previewTab);
+
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    expect(screen.getByText(/some text/)).toBeInTheDocument();
+  });
+
   it('does not trigger Ctrl+B formatting when Alt key is pressed (AltGr protection)', () => {
     renderComponent('create', 'Title', 'plain text');
 
