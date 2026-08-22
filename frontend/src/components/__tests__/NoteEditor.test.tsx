@@ -170,5 +170,29 @@ describe('NoteEditor Component', () => {
     expect(screen.getByText(/# Fenced Header/)).toBeInTheDocument();
     expect(screen.getByText(/- Fenced Bullet/)).toBeInTheDocument();
     expect(screen.getByText(/# Inline Header/)).toBeInTheDocument();
+    expect(screen.getByText(/# Fenced Header/).closest('pre')).not.toBeNull();
+    expect(screen.getByText(/# Inline Header/).closest('code')).not.toBeNull();
+  });
+
+  it('leaves literal placeholder-like text unchanged in the preview', () => {
+    const contentWithLiteralPlaceholder = '___INLINE_CODE_PLACEHOLDER_0___ and ___CODE_BLOCK_PLACEHOLDER_0___';
+    renderComponent('create', 'Title', contentWithLiteralPlaceholder);
+
+    const previewTab = screen.getByRole('tab', { name: /preview/i });
+    fireEvent.click(previewTab);
+
+    expect(screen.getByText(/___INLINE_CODE_PLACEHOLDER_0___ and ___CODE_BLOCK_PLACEHOLDER_0___/)).toBeInTheDocument();
+  });
+
+  it('preserves leading indentation when continuing task list on Enter key', () => {
+    renderComponent('create', 'Title', '  - [x] Indented task item');
+
+    const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+    textarea.selectionStart = textarea.value.length;
+    textarea.selectionEnd = textarea.value.length;
+
+    fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter', charCode: 13 });
+
+    expect(textarea.value).toBe('  - [x] Indented task item\n  - [ ] ');
   });
 });

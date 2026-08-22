@@ -439,7 +439,7 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
                     modifiedCount: 1,
                     upsertedCount: 0,
                     upsertedId: null,
-                } as any);
+                } as Awaited<ReturnType<typeof User.updateOne>>);
 
                 const res = await request(app)
                     .put('/api/auth/change-password')

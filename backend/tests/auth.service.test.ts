@@ -403,7 +403,7 @@ describe('Auth Service (auth.service.ts)', () => {
                     modifiedCount: 1,
                     upsertedCount: 0,
                     upsertedId: null,
-                } as any);
+                } as Awaited<ReturnType<typeof User.updateOne>>);
 
                 await authService.changePassword(validUserId.toString(), {
                     currentPassword: 'CurrentPass123!',
@@ -490,26 +490,26 @@ describe('Auth Service (auth.service.ts)', () => {
         });
 
         it('should throw 409 conflict error when concurrent update occurs during password change', async () => {
-            const currentHashed = await bcrypt.hash('CurrentPass123!', 10);
-            const mockUser = {
-                _id: validUserId,
-                password: currentHashed,
-                credentialVersion: 0,
-            };
-
-            sinon.stub(User, 'findById').returns({
-                select: sinon.stub().resolves(mockUser),
-            } as unknown as ReturnType<typeof User.findById>);
-
-            sinon.stub(User, 'updateOne').resolves({
-                acknowledged: true,
-                matchedCount: 0,
-                modifiedCount: 0,
-                upsertedCount: 0,
-                upsertedId: null,
-            } as any);
-
             try {
+                const currentHashed = await bcrypt.hash('CurrentPass123!', 10);
+                const mockUser = {
+                    _id: validUserId,
+                    password: currentHashed,
+                    credentialVersion: 0,
+                };
+
+                sinon.stub(User, 'findById').returns({
+                    select: sinon.stub().resolves(mockUser),
+                } as unknown as ReturnType<typeof User.findById>);
+
+                sinon.stub(User, 'updateOne').resolves({
+                    acknowledged: true,
+                    matchedCount: 0,
+                    modifiedCount: 0,
+                    upsertedCount: 0,
+                    upsertedId: null,
+                } as Awaited<ReturnType<typeof User.updateOne>>);
+
                 await authService.changePassword(validUserId.toString(), {
                     currentPassword: 'CurrentPass123!',
                     newPassword: 'NewStrongPassword456!',

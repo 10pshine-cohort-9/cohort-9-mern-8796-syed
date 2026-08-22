@@ -93,7 +93,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     if (!text) return '';
     let html = text;
 
-    const placeholders: string[] = [];
+    const renderToken = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+    const placeholders: { token: string; html: string; isBlock: boolean }[] = [];
 
     // Helper to escape HTML characters inside code blocks to prevent raw HTML execution/breakage
     const escapeHtml = (str: string): string =>
@@ -104,16 +105,16 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
     // Extract fenced code blocks before other markdown transformations
     html = html.replace(/```([\s\S]*?)```/g, (_, codeContent: string) => {
-      const placeholder = `___CODE_BLOCK_PLACEHOLDER_${placeholders.length}___`;
-      placeholders.push(`<pre><code>${escapeHtml(codeContent)}</code></pre>`);
-      return placeholder;
+      const token = `___CODE_BLOCK_${renderToken}_${placeholders.length}___`;
+      placeholders.push({ token, html: `<pre><code>${escapeHtml(codeContent)}</code></pre>`, isBlock: true });
+      return token;
     });
 
     // Extract inline code blocks before other markdown transformations
     html = html.replace(/`([^`]+)`/g, (_, codeContent: string) => {
-      const placeholder = `___INLINE_CODE_PLACEHOLDER_${placeholders.length}___`;
-      placeholders.push(`<code>${escapeHtml(codeContent)}</code>`);
-      return placeholder;
+      const token = `___INLINE_CODE_${renderToken}_${placeholders.length}___`;
+      placeholders.push({ token, html: `<code>${escapeHtml(codeContent)}</code>`, isBlock: false });
+      return token;
     });
 
     // Headings
@@ -162,7 +163,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           trimmed.startsWith('<ol') ||
           trimmed.startsWith('<blockquote') ||
           trimmed.startsWith('<pre') ||
-          trimmed.startsWith('___CODE_BLOCK_PLACEHOLDER_')
+          placeholders.some((ph) => ph.isBlock && trimmed.startsWith(ph.token))
         ) {
           return trimmed;
         }
@@ -171,8 +172,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       .join('');
 
     // Restore protected code blocks
-    placeholders.forEach((codeHtml, idx) => {
-      html = html.replace(new RegExp(`___(CODE_BLOCK|INLINE_CODE)_PLACEHOLDER_${idx}___`, 'g'), codeHtml);
+    placeholders.forEach(({ token, html: codeHtml }) => {
+      html = html.split(token).join(codeHtml);
     });
 
     return DOMPurify.sanitize(html, {
@@ -293,7 +294,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           }, 0);
         } else {
           // Continue task list
-          const addition = '\n- [ ] ';
+          const continuationPrefix = taskMatch[1].replace(/-\s*\[\s*[xX]?\s*\]\s*$/, '- [ ] ');
+          const addition = `\n${continuationPrefix}`;
           const newContent = value.substring(0, selectionStart) + addition + value.substring(selectionEnd);
           setContent(newContent);
           setTimeout(() => {
