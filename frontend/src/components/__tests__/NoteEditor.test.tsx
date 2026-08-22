@@ -146,14 +146,29 @@ describe('NoteEditor Component', () => {
   });
 
   it('renders both lowercase [x] and uppercase [X] task markers as checked checkboxes in preview tab', () => {
-    renderComponent('create', 'Title', '- [x] task one\n- [X] task two');
+    renderComponent('create', 'Title', '- [x] task one\n- [X] task two\n- [ x ] task three\n- [ X ] task four');
 
     const previewTab = screen.getByRole('tab', { name: /preview/i });
     fireEvent.click(previewTab);
 
     const checkboxes = screen.getAllByRole('checkbox');
-    expect(checkboxes).toHaveLength(2);
-    expect(checkboxes[0]).toBeChecked();
-    expect(checkboxes[1]).toBeChecked();
+    expect(checkboxes).toHaveLength(4);
+    checkboxes.forEach((checkbox) => {
+      expect(checkbox).toBeChecked();
+    });
+  });
+
+  it('preserves literal markdown elements inside fenced and inline code blocks without rendering HTML elements', () => {
+    const codeMarkdown = '```\n# Fenced Header\n- Fenced Bullet\n```\n`# Inline Header`';
+    renderComponent('create', 'Title', codeMarkdown);
+
+    const previewTab = screen.getByRole('tab', { name: /preview/i });
+    fireEvent.click(previewTab);
+
+    expect(screen.queryByRole('heading', { name: 'Fenced Header' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Inline Header' })).not.toBeInTheDocument();
+    expect(screen.getByText(/# Fenced Header/)).toBeInTheDocument();
+    expect(screen.getByText(/- Fenced Bullet/)).toBeInTheDocument();
+    expect(screen.getByText(/# Inline Header/)).toBeInTheDocument();
   });
 });

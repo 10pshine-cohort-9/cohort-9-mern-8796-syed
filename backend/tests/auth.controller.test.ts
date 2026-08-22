@@ -433,6 +433,13 @@ describe('Auth Controller & Routes (POST /api/auth/*)', () => {
                     then: (resolve: (val: unknown) => void) => resolve(mockUser),
                 };
                 sinon.stub(User, 'findById').callsFake(() => queryObj as unknown as ReturnType<typeof User.findById>);
+                sinon.stub(User, 'updateOne').resolves({
+                    acknowledged: true,
+                    matchedCount: 1,
+                    modifiedCount: 1,
+                    upsertedCount: 0,
+                    upsertedId: null,
+                } as any);
 
                 const res = await request(app)
                     .put('/api/auth/change-password')

@@ -391,19 +391,26 @@ describe('Auth Service (auth.service.ts)', () => {
                     password: currentHashed,
                     credentialVersion: 0,
                     passwordChangedAt: undefined as Date | undefined,
-                    save: sinon.stub().resolves(),
                 };
 
                 sinon.stub(User, 'findById').returns({
                     select: sinon.stub().resolves(mockUser),
                 } as unknown as ReturnType<typeof User.findById>);
 
+                const updateStub = sinon.stub(User, 'updateOne').resolves({
+                    acknowledged: true,
+                    matchedCount: 1,
+                    modifiedCount: 1,
+                    upsertedCount: 0,
+                    upsertedId: null,
+                } as any);
+
                 await authService.changePassword(validUserId.toString(), {
                     currentPassword: 'CurrentPass123!',
                     newPassword: 'NewStrongPassword456!',
                 });
 
-                expect(mockUser.save.calledOnce).to.be.true;
+                expect(updateStub.calledOnce).to.be.true;
                 expect(mockUser.credentialVersion).to.equal(1);
                 expect(mockUser.passwordChangedAt).to.be.an.instanceOf(Date);
                 const matchesNew = await bcrypt.compare('NewStrongPassword456!', mockUser.password);
@@ -478,6 +485,41 @@ describe('Auth Service (auth.service.ts)', () => {
                 if (err instanceof ApiError) {
                     expect(err.statusCode).to.equal(400);
                     expect(err.message).to.equal('New password must be different from current password');
+                }
+            }
+        });
+
+        it('should throw 409 conflict error when concurrent update occurs during password change', async () => {
+            const currentHashed = await bcrypt.hash('CurrentPass123!', 10);
+            const mockUser = {
+                _id: validUserId,
+                password: currentHashed,
+                credentialVersion: 0,
+            };
+
+            sinon.stub(User, 'findById').returns({
+                select: sinon.stub().resolves(mockUser),
+            } as unknown as ReturnType<typeof User.findById>);
+
+            sinon.stub(User, 'updateOne').resolves({
+                acknowledged: true,
+                matchedCount: 0,
+                modifiedCount: 0,
+                upsertedCount: 0,
+                upsertedId: null,
+            } as any);
+
+            try {
+                await authService.changePassword(validUserId.toString(), {
+                    currentPassword: 'CurrentPass123!',
+                    newPassword: 'NewStrongPassword456!',
+                });
+                expect.fail('Expected changePassword to throw 409 ApiError');
+            } catch (err: unknown) {
+                expect(err).to.be.instanceOf(ApiError);
+                if (err instanceof ApiError) {
+                    expect(err.statusCode).to.equal(409);
+                    expect(err.message).to.equal('Concurrent update detected. Please try again.');
                 }
             }
         });

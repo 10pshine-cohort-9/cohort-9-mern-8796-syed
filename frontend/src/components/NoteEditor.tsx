@@ -93,9 +93,28 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     if (!text) return '';
     let html = text;
 
-    // Code blocks
-    html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    const placeholders: string[] = [];
+
+    // Helper to escape HTML characters inside code blocks to prevent raw HTML execution/breakage
+    const escapeHtml = (str: string): string =>
+      str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    // Extract fenced code blocks before other markdown transformations
+    html = html.replace(/```([\s\S]*?)```/g, (_, codeContent: string) => {
+      const placeholder = `___CODE_BLOCK_PLACEHOLDER_${placeholders.length}___`;
+      placeholders.push(`<pre><code>${escapeHtml(codeContent)}</code></pre>`);
+      return placeholder;
+    });
+
+    // Extract inline code blocks before other markdown transformations
+    html = html.replace(/`([^`]+)`/g, (_, codeContent: string) => {
+      const placeholder = `___INLINE_CODE_PLACEHOLDER_${placeholders.length}___`;
+      placeholders.push(`<code>${escapeHtml(codeContent)}</code>`);
+      return placeholder;
+    });
 
     // Headings
     html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
@@ -107,7 +126,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
     // Task lists
     html = html.replace(/^\s*-\s*\[\s*\]\s+(.*$)/gim, '<ul><li><input type="checkbox" disabled /> $1</li></ul>');
-    html = html.replace(/^\s*-\s*\[[xX]\]\s+(.*$)/gim, '<ul><li><input type="checkbox" checked disabled /> $1</li></ul>');
+    html = html.replace(/^\s*-\s*\[\s*[xX]\s*\]\s+(.*$)/gim, '<ul><li><input type="checkbox" checked disabled /> $1</li></ul>');
 
     // Bullet Lists
     html = html.replace(/^- (.*$)/gim, '<ul><li>$1</li></ul>');
@@ -142,13 +161,19 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           trimmed.startsWith('<ul') ||
           trimmed.startsWith('<ol') ||
           trimmed.startsWith('<blockquote') ||
-          trimmed.startsWith('<pre')
+          trimmed.startsWith('<pre') ||
+          trimmed.startsWith('___CODE_BLOCK_PLACEHOLDER_')
         ) {
           return trimmed;
         }
         return `<p>${p.replace(/\n/g, '<br />')}</p>`;
       })
       .join('');
+
+    // Restore protected code blocks
+    placeholders.forEach((codeHtml, idx) => {
+      html = html.replace(new RegExp(`___(CODE_BLOCK|INLINE_CODE)_PLACEHOLDER_${idx}___`, 'g'), codeHtml);
+    });
 
     return DOMPurify.sanitize(html, {
       ALLOWED_TAGS: [
@@ -224,7 +249,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     cleanedText = cleanedText
       .split('\n')
       .map((line) => {
-        line = line.replace(/^\s*-\s*\[[ xX]\]\s+/, '');
+        line = line.replace(/^\s*-\s*\[\s*[xX]?\s*\]\s+/, '');
         line = line.replace(/^\s*[-*]\s+/, '');
         line = line.replace(/^\s*\d+\.\s+/, '');
         line = line.replace(/^\s*#{1,6}\s+/, '');
@@ -252,8 +277,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
       const currentLine = value.substring(lineStart, selectionStart);
 
-      // Check Task list: "- [ ] " or "- [x] "
-      const taskMatch = currentLine.match(/^(\s*-\s*\[[ xX]\]\s*)(.*)$/);
+      // Check Task list: "- [ ] ", "- [x] ", or "- [ x ] "
+      const taskMatch = currentLine.match(/^(\s*-\s*\[\s*[xX]?\s*\]\s*)(.*)$/);
       if (taskMatch) {
         e.preventDefault();
         const contentAfter = taskMatch[2].trim();

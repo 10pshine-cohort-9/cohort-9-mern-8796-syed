@@ -340,10 +340,34 @@ export async function changePassword(userId: string, input: ChangePasswordInput)
 
         const hashedNewPassword = await bcrypt.hash(input.newPassword, BCRYPT_SALT_ROUNDS);
 
+        const currentCredentialVersion = user.credentialVersion ?? 0;
+        const now = new Date();
+
+        const updateResult = await User.updateOne(
+            {
+                _id: user._id,
+                $or: [
+                    { credentialVersion: currentCredentialVersion },
+                    ...(currentCredentialVersion === 0 ? [{ credentialVersion: { $exists: false } }] : []),
+                ],
+            },
+            {
+                $set: {
+                    credentialVersion: currentCredentialVersion + 1,
+                    password: hashedNewPassword,
+                    passwordChangedAt: now,
+                },
+            },
+        );
+
+        if (updateResult.matchedCount === 0) {
+            logger.warn({ userId }, 'Concurrent password update conflict');
+            throw new ApiError('Concurrent update detected. Please try again.', 409);
+        }
+
         user.password = hashedNewPassword;
-        user.credentialVersion = (user.credentialVersion ?? 0) + 1;
-        user.passwordChangedAt = new Date();
-        await user.save();
+        user.credentialVersion = currentCredentialVersion + 1;
+        user.passwordChangedAt = now;
 
         logger.info({ userId }, 'User password changed successfully');
     } catch (error: unknown) {

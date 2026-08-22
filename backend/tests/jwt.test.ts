@@ -149,7 +149,13 @@ describe('JWT Utility (jwt.ts)', () => {
                 lean: sinon.stub().resolves({ credentialVersion: 1 }),
             } as unknown as ReturnType<typeof User.findById>);
 
-            const payload = await verifyAuthToken(newToken);
+            let payload: AuthTokenPayload;
+            try {
+                payload = await verifyAuthToken(newToken);
+            } catch (err: unknown) {
+                expect.fail(`verifyAuthToken rejected unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
+            }
+
             expect(payload.sub).to.equal(userId);
             expect(payload.credentialVersion).to.equal(1);
         });
