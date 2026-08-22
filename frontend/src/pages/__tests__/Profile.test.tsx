@@ -111,14 +111,22 @@ describe('Profile Page Component', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^change password$/i }));
 
-    await waitFor(() => {
-      expect(authApi.changePassword).toHaveBeenCalledWith({
-        currentPassword: 'OldPassword123!',
-        newPassword: 'NewPassword456!',
+    try {
+      await waitFor(() => {
+        expect(authApi.changePassword).toHaveBeenCalledWith({
+          currentPassword: 'OldPassword123!',
+          newPassword: 'NewPassword456!',
+        });
+        expect(mockUpdateToken).toHaveBeenCalledWith(newToken);
+        expect(screen.getByText(/password changed successfully!/i)).toBeInTheDocument();
       });
-      expect(mockUpdateToken).toHaveBeenCalledWith(newToken);
-      expect(screen.getByText(/password changed successfully!/i)).toBeInTheDocument();
-    });
+    } catch (error) {
+      throw new Error(
+        `Profile password-change success test failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   });
 
   it('renders elegant back to dashboard link', () => {

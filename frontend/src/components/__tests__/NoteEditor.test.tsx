@@ -119,8 +119,8 @@ describe('NoteEditor Component', () => {
     expect(textarea.value).toBe('- First bullet item\n- ');
   });
 
-  it('removes HTML tags and markdown formatting without removing plain text comparison if (a<b) return', () => {
-    const formattedContent = '**bold text** and <b>html bold</b> with if (a<b) return and 2 > 1';
+  it('removes HTML tags and markdown formatting without removing plain text comparison if (a<b) return or arithmetic expressions such as 2 * 3 * 4', () => {
+    const formattedContent = '**bold text** and *italic text* and <b>html bold</b> with if (a<b) return and 2 * 3 * 4 and 2 > 1';
     renderComponent('create', 'Title', formattedContent);
 
     const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
@@ -130,7 +130,7 @@ describe('NoteEditor Component', () => {
     const clearBtn = screen.getByRole('button', { name: /clear formatting/i });
     fireEvent.click(clearBtn);
 
-    expect(textarea.value).toBe('bold text and html bold with if (a<b) return and 2 > 1');
+    expect(textarea.value).toBe('bold text and italic text and html bold with if (a<b) return and 2 * 3 * 4 and 2 > 1');
   });
 
   it('does not trigger Ctrl+B formatting when Alt key is pressed (AltGr protection)', () => {
