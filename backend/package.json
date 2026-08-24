@@ -1,7 +1,7 @@
 {
     "name": "notes-app-backend",
     "version": "1.0.0",
-    "description": "Backend foundation for the Notes App",
+    "description": "Backend foundation for NoteNest",
     "main": "dist/server.js",
     "type": "commonjs",
     "scripts": {

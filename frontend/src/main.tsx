@@ -8,6 +8,7 @@ import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
 import { NoteEditorPage } from './pages/NoteEditorPage';
+import { Profile } from './pages/Profile';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -27,6 +28,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               <Route path="/" element={<Dashboard />} />
               <Route path="/notes/new" element={<NoteEditorPage />} />
               <Route path="/notes/:id/edit" element={<NoteEditorPage />} />
+              <Route path="/profile" element={<Profile />} />
             </Route>
           </Route>
 

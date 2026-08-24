@@ -1,8 +1,26 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FiSearch, FiX, FiPlus, FiRefreshCw, FiFileText, FiRotateCcw, FiAlertCircle } from 'react-icons/fi';
 import { ApiError, notesApi } from '../services/api';
 import { Note } from '../types';
 import { NoteCard } from '../components/NoteCard';
+
+type SortOptionValue = 'updatedAt:desc' | 'createdAt:desc' | 'createdAt:asc' | 'title:asc' | 'title:desc';
+
+interface SortOptionConfig {
+  value: SortOptionValue;
+  label: string;
+  sortBy: 'updatedAt' | 'createdAt' | 'title';
+  sortOrder: 'asc' | 'desc';
+}
+
+const SORT_OPTIONS: SortOptionConfig[] = [
+  { value: 'updatedAt:desc', label: 'Recently Updated', sortBy: 'updatedAt', sortOrder: 'desc' },
+  { value: 'createdAt:desc', label: 'Newest First', sortBy: 'createdAt', sortOrder: 'desc' },
+  { value: 'createdAt:asc', label: 'Oldest First', sortBy: 'createdAt', sortOrder: 'asc' },
+  { value: 'title:asc', label: 'Title: A to Z', sortBy: 'title', sortOrder: 'asc' },
+  { value: 'title:desc', label: 'Title: Z to A', sortBy: 'title', sortOrder: 'desc' },
+];
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -12,6 +30,7 @@ export const Dashboard: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+  const [selectedSort, setSelectedSort] = useState<SortOptionValue>('updatedAt:desc');
 
   // Stale request tracking
   const requestIdRef = useRef<number>(0);
@@ -31,13 +50,19 @@ export const Dashboard: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const loadNotes = useCallback(async (search?: string): Promise<void> => {
+  const loadNotes = useCallback(async (search?: string, sortVal: SortOptionValue = 'updatedAt:desc'): Promise<void> => {
     const currentRequestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
 
+    const sortConfig = SORT_OPTIONS.find((s) => s.value === sortVal) || SORT_OPTIONS[0];
+
     try {
-      const result = await notesApi.list({ search: search?.trim() || undefined });
+      const result = await notesApi.list({
+        search: search?.trim() || undefined,
+        sortBy: sortConfig.sortBy,
+        sortOrder: sortConfig.sortOrder,
+      });
       if (currentRequestId === requestIdRef.current) {
         setNotes(result.notes);
       }
@@ -57,17 +82,15 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadNotes(debouncedSearch);
-  }, [debouncedSearch, loadNotes]);
+    loadNotes(debouncedSearch, selectedSort);
+  }, [debouncedSearch, selectedSort, loadNotes]);
 
   // Modal open/close focus management & Escape key listener
   useEffect(() => {
     if (!noteToDelete) return;
 
-    // Save element that had focus before opening modal
     lastFocusedElementRef.current = document.activeElement as HTMLElement | null;
 
-    // Focus cancel button inside modal
     const focusTimer = setTimeout(() => {
       cancelButtonRef.current?.focus();
     }, 50);
@@ -83,13 +106,18 @@ export const Dashboard: React.FC = () => {
     return () => {
       clearTimeout(focusTimer);
       window.removeEventListener('keydown', handleKeyDown);
-      // Restore focus on close
       lastFocusedElementRef.current?.focus();
     };
   }, [noteToDelete]);
 
   const handleCreateNote = (): void => {
     navigate('/notes/new');
+  };
+
+  const handleClearFilters = (): void => {
+    setSearchQuery('');
+    setDebouncedSearch('');
+    setSelectedSort('updatedAt:desc');
   };
 
   const handleConfirmDelete = async (): Promise<void> => {
@@ -115,41 +143,81 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  const hasActiveSearch = Boolean(debouncedSearch.trim());
+  const hasNonDefaultSort = selectedSort !== 'updatedAt:desc';
+  const hasActiveFilters = hasActiveSearch || hasNonDefaultSort;
+
   return (
     <div className="dashboard-container">
+      {/* Dashboard Toolbar: Search, Sort Filter, and Create Button */}
       <div className="dashboard-toolbar">
-        <div className="search-box">
-          <span className="search-icon">🔍</span>
-          <input
-            type="text"
-            className="form-input search-input"
-            placeholder="Search notes by title or content..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Search notes"
-          />
-          {searchQuery && (
+        <div className="toolbar-search-filter-row">
+          <div className="search-box">
+            <FiSearch className="search-icon" aria-hidden="true" />
+            <input
+              type="text"
+              className="form-input search-input"
+              placeholder="Search notes by title or content..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search notes"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="search-clear-btn"
+                onClick={() => {
+                  setSearchQuery('');
+                  setDebouncedSearch('');
+                }}
+                aria-label="Clear search query"
+              >
+                <FiX />
+              </button>
+            )}
+          </div>
+
+          <div className="filter-sort-wrapper">
+            <label htmlFor="notes-sort-select" className="filter-label">
+              Sort by:
+            </label>
+            <select
+              id="notes-sort-select"
+              className="form-input sort-select"
+              value={selectedSort}
+              onChange={(e) => setSelectedSort(e.target.value as SortOptionValue)}
+              aria-label="Sort notes by"
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {hasActiveFilters && (
             <button
               type="button"
-              className="search-clear-btn"
-              onClick={() => setSearchQuery('')}
-              aria-label="Clear search"
+              className="btn btn-secondary btn-sm clear-filters-btn"
+              onClick={handleClearFilters}
+              title="Reset search and sorting to default"
             >
-              ✕
+              <FiRotateCcw aria-hidden="true" style={{ marginRight: '0.35rem' }} /> Reset Filters
             </button>
           )}
         </div>
 
-        <button type="button" className="btn btn-primary" onClick={handleCreateNote}>
-          ➕ Create Note
+        <button type="button" className="btn btn-primary create-note-btn" onClick={handleCreateNote}>
+          <FiPlus aria-hidden="true" style={{ marginRight: '0.35rem' }} /> Create Note
         </button>
       </div>
 
       {error && (
         <div className="alert-banner alert-banner-danger" role="alert">
-          <span>⚠️ {error}</span>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => loadNotes(debouncedSearch)}>
-            🔄 Retry
+          <span><FiAlertCircle style={{ marginRight: '0.35rem' }} /> {error}</span>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => loadNotes(debouncedSearch, selectedSort)}>
+            <FiRefreshCw style={{ marginRight: '0.35rem' }} /> Retry
           </button>
         </div>
       )}
@@ -161,18 +229,24 @@ export const Dashboard: React.FC = () => {
         </div>
       ) : notes.length === 0 ? (
         <div className="empty-state-card">
-          <div className="empty-state-icon">📝</div>
+          <div className="empty-state-icon" aria-hidden="true">
+            <FiFileText />
+          </div>
           <h3 className="empty-state-title">
-            {debouncedSearch ? 'No matching notes found' : 'No notes yet'}
+            {hasActiveSearch ? 'No matching notes found' : 'No notes yet'}
           </h3>
           <p className="empty-state-desc">
-            {debouncedSearch
-              ? `No notes matched "${debouncedSearch}". Try a different keyword.`
+            {hasActiveSearch
+              ? `No notes matched "${debouncedSearch}". Try a different keyword or reset filters.`
               : 'Create your first note to capture ideas, quick thoughts, or detailed notes!'}
           </p>
-          {!debouncedSearch && (
+          {hasActiveFilters ? (
+            <button type="button" className="btn btn-secondary" onClick={handleClearFilters}>
+              <FiRotateCcw style={{ marginRight: '0.35rem' }} /> Clear Filters
+            </button>
+          ) : (
             <button type="button" className="btn btn-primary" onClick={handleCreateNote}>
-              ✨ Create your first note
+              <FiPlus style={{ marginRight: '0.35rem' }} /> Create your first note
             </button>
           )}
         </div>
@@ -241,3 +315,4 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
+

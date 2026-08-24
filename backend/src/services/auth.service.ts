@@ -110,7 +110,7 @@ export async function register(input: RegistrationInput): Promise<AuthResult> {
                 name,
                 password: hashedPassword,
             });
-            const token = signAuthToken(user.id);
+            const token = signAuthToken(user.id, user.credentialVersion ?? 0);
 
             logger.info({ userId: user.id }, 'User registered successfully');
 
@@ -157,7 +157,7 @@ export async function login(input: AuthCredentials): Promise<AuthResult> {
             throw new ApiError('Invalid email or password', 401);
         }
 
-        const token = signAuthToken(user.id);
+        const token = signAuthToken(user.id, user.credentialVersion ?? 0);
 
         logger.info({ userId: user.id }, 'User logged in successfully');
 
@@ -242,5 +242,144 @@ export async function getAuthenticatedUser(userId: string): Promise<PublicUser> 
 
         logger.error({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'Authenticated user lookup failed');
         throw new ApiError('Authenticated user lookup failed', 500);
+    }
+}
+
+export type UpdateProfileInput = {
+    readonly email?: string;
+    readonly name?: string;
+};
+
+export type ChangePasswordInput = {
+    readonly currentPassword: string;
+    readonly newPassword: string;
+};
+
+export async function updateProfile(userId: string, input: UpdateProfileInput): Promise<PublicUser> {
+    try {
+        const user = await User.findById(userId);
+
+        if (user === null) {
+            throw new ApiError('Authenticated user not found', 401);
+        }
+
+        let hasUpdates = false;
+
+        if (input.name !== undefined) {
+            const name = validateName(input.name);
+            user.name = name;
+            hasUpdates = true;
+        }
+
+        if (input.email !== undefined) {
+            validateEmail(input.email);
+            const normalizedEmail = normalizeEmail(input.email);
+
+            if (normalizedEmail !== user.email) {
+                const existingUser = await User.findOne({ email: normalizedEmail }).select('_id').lean();
+                if (existingUser !== null && existingUser._id.toString() !== userId) {
+                    throw new ApiError('Email is already registered', 409);
+                }
+                user.email = normalizedEmail;
+                hasUpdates = true;
+            }
+        }
+
+        if (!hasUpdates) {
+            throw new ApiError('At least one field (name or email) must be provided for update', 400);
+        }
+
+        await user.save();
+
+        logger.info({ userId }, 'User profile updated successfully');
+
+        return toPublicUser(user);
+    } catch (error: unknown) {
+        if (error instanceof ApiError) {
+            throw error;
+        }
+
+        if (isDuplicateKeyError(error)) {
+            throw new ApiError('Email is already registered', 409);
+        }
+
+        logger.error({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'Profile update failed');
+        throw new ApiError('Profile update failed', 500);
+    }
+}
+
+export async function changePassword(userId: string, input: ChangePasswordInput): Promise<{ token: string }> {
+    try {
+        assertString(input.currentPassword, 'Current password');
+        if (input.currentPassword.trim().length === 0) {
+            throw new ApiError('Current password is required', 400);
+        }
+
+        validatePassword(input.newPassword);
+
+        if (bcrypt.truncates(input.newPassword)) {
+            throw new ApiError('Password exceeds the maximum length supported by bcrypt', 400);
+        }
+
+        const user = await User.findById(userId).select('+password');
+
+        if (user === null) {
+            throw new ApiError('Authenticated user not found', 401);
+        }
+
+        const currentPasswordMatches = await bcrypt.compare(input.currentPassword, user.password);
+
+        if (!currentPasswordMatches) {
+            logger.warn({ reason: 'incorrect_current_password', userId }, 'Password change failed');
+            throw new ApiError('Current password is incorrect', 401);
+        }
+
+        if (input.currentPassword === input.newPassword) {
+            throw new ApiError('New password must be different from current password', 400);
+        }
+
+        const hashedNewPassword = await bcrypt.hash(input.newPassword, BCRYPT_SALT_ROUNDS);
+
+        const currentCredentialVersion = user.credentialVersion ?? 0;
+        const now = new Date();
+
+        const updateResult = await User.updateOne(
+            {
+                _id: user._id,
+                $or: [
+                    { credentialVersion: currentCredentialVersion },
+                    ...(currentCredentialVersion === 0 ? [{ credentialVersion: { $exists: false } }] : []),
+                ],
+            },
+            {
+                $set: {
+                    credentialVersion: currentCredentialVersion + 1,
+                    password: hashedNewPassword,
+                    passwordChangedAt: now,
+                },
+            },
+        );
+
+        if (updateResult.matchedCount === 0) {
+            logger.warn({ userId }, 'Concurrent password update conflict');
+            throw new ApiError('Concurrent update detected. Please try again.', 409);
+        }
+
+        user.password = hashedNewPassword;
+        user.credentialVersion = currentCredentialVersion + 1;
+        user.passwordChangedAt = now;
+
+        const token = signAuthToken(userId, user.credentialVersion);
+
+        logger.info({ userId }, 'User password changed successfully');
+
+        return { token };
+    } catch (error: unknown) {
+        if (error instanceof ApiError) {
+            throw error;
+        }
+
+        logger.error({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'Password change failed');
+        throw new ApiError('Password change failed', 500);
     }
 }

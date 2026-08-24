@@ -1,9 +1,11 @@
 import { Schema, model, type HydratedDocument } from 'mongoose';
 
 export type UserAttributes = {
-    readonly email: string;
-    readonly name: string;
-    readonly password: string;
+    email: string;
+    name: string;
+    password: string;
+    passwordChangedAt?: Date;
+    credentialVersion: number;
 };
 
 export type UserDocument = HydratedDocument<
@@ -34,6 +36,14 @@ const userSchema = new Schema<UserAttributes>(
             required: true,
             select: false,
             type: String,
+        },
+        passwordChangedAt: {
+            type: Date,
+        },
+        credentialVersion: {
+            default: 0,
+            required: true,
+            type: Number,
         },
     },
     {

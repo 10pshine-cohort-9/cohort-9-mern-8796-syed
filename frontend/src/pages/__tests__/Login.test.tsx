@@ -31,6 +31,8 @@ describe('Login Component', () => {
       login: mockLogin,
       register: vi.fn(),
       logout: vi.fn(),
+      updateUser: vi.fn(),
+      refreshUser: vi.fn(),
     });
   });
 
@@ -47,7 +49,7 @@ describe('Login Component', () => {
 
     expect(screen.getByRole('heading', { name: /welcome back/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Your password')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
     expect(screen.getByText(/don't have an account\?/i)).toBeInTheDocument();
   });
@@ -70,7 +72,7 @@ describe('Login Component', () => {
     renderComponent();
 
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'not-an-email' } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByPlaceholderText('Your password'), { target: { value: 'password123' } });
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     try {
@@ -86,7 +88,7 @@ describe('Login Component', () => {
     renderComponent();
 
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'user@example.com' } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByPlaceholderText('Your password'), { target: { value: 'password123' } });
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     try {
@@ -107,7 +109,7 @@ describe('Login Component', () => {
     renderComponent();
 
     fireEvent.change(screen.getByLabelText(/email address/i), { target: { value: 'user@example.com' } });
-    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'wrongpass' } });
+    fireEvent.change(screen.getByPlaceholderText('Your password'), { target: { value: 'wrongpass' } });
     fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     try {

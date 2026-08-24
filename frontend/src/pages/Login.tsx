@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { PasswordInput } from '../components/PasswordInput';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -104,16 +105,19 @@ export const Login: React.FC = () => {
             <label className="form-label" htmlFor="password">
               Password
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
-              className={`form-input ${errors.password ? 'is-invalid' : ''}`}
               placeholder="Your password"
               value={password}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>): void => setPassword(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>): void => {
+                setPassword(e.target.value);
+                if (errors.password) {
+                  setErrors((prev) => ({ ...prev, password: undefined }));
+                }
+              }}
               disabled={isSubmitting}
-              aria-invalid={!!errors.password}
-              aria-describedby={errors.password ? 'password-error' : undefined}
+              error={errors.password}
+              autoComplete="current-password"
             />
             {errors.password && <div id="password-error" className="field-error">{errors.password}</div>}
           </div>

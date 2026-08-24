@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FiEdit3, FiTrash2 } from 'react-icons/fi';
 import { Note } from '../types';
 
 interface NoteCardProps {
@@ -63,7 +64,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onDeleteRequest, isDel
           onClick={handleOpenNote}
           aria-label={`Edit note ${note.title}`}
         >
-          ✏️ Edit
+          <FiEdit3 aria-hidden="true" style={{ marginRight: '0.35rem' }} /> Edit
         </button>
 
         <button
@@ -74,7 +75,8 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onDeleteRequest, isDel
           aria-label={`Delete note ${note.title}`}
           data-note-id={noteId}
         >
-          {isDeleting ? 'Deleting...' : '🗑️ Delete'}
+          <FiTrash2 aria-hidden="true" style={{ marginRight: '0.35rem' }} />
+          {isDeleting ? 'Deleting...' : 'Delete'}
         </button>
       </div>
     </div>

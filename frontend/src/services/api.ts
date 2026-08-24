@@ -1,6 +1,7 @@
 import {
   ApiResponse,
   AuthResult,
+  ChangePasswordInput,
   CreateNoteInput,
   DeleteNoteResult,
   LoginInput,
@@ -9,6 +10,7 @@ import {
   RegisterInput,
   SingleNoteResult,
   UpdateNoteInput,
+  UpdateProfileInput,
   User,
 } from '../types';
 
@@ -98,6 +100,20 @@ export const authApi = {
   getMe: async (): Promise<{ user: User }> => {
     return request<{ user: User }>('/auth/me', {
       method: 'GET',
+    });
+  },
+
+  updateProfile: async (input: UpdateProfileInput): Promise<{ user: User }> => {
+    return request<{ user: User }>('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+  },
+
+  changePassword: async (input: ChangePasswordInput): Promise<{ token: string }> => {
+    return request<{ token: string }>('/auth/change-password', {
+      method: 'PUT',
+      body: JSON.stringify(input),
     });
   },
 
