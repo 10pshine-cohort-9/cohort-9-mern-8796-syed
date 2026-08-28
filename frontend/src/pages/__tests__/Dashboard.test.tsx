@@ -1,9 +1,9 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, NavigateFunction } from 'react-router-dom';
 import { Dashboard } from '../Dashboard';
 import { notesApi } from '../../services/api';
 
-const mockNavigate = jest.fn();
+const mockNavigate = jest.fn<ReturnType<NavigateFunction>, Parameters<NavigateFunction>>();
 jest.mock('react-router-dom', () => {
   let actual: typeof import('react-router-dom');
   try {
@@ -19,8 +19,8 @@ jest.mock('react-router-dom', () => {
 
 jest.mock('../../services/api', () => ({
   notesApi: {
-    list: jest.fn(),
-    delete: jest.fn(),
+    list: jest.fn<ReturnType<typeof notesApi.list>, Parameters<typeof notesApi.list>>(),
+    delete: jest.fn<ReturnType<typeof notesApi.delete>, Parameters<typeof notesApi.delete>>(),
   },
   ApiError: class ApiError extends Error {
     constructor(public message: string, public statusCode: number = 400) {

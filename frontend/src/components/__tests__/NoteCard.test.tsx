@@ -1,9 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, NavigateFunction } from 'react-router-dom';
 import { NoteCard } from '../NoteCard';
 import { Note } from '../../types';
 
-const mockNavigate = jest.fn();
+const mockNavigate = jest.fn<ReturnType<NavigateFunction>, Parameters<NavigateFunction>>();
 jest.mock('react-router-dom', () => {
   const actual = jest.requireActual<typeof import('react-router-dom')>('react-router-dom');
   return {
@@ -23,7 +23,7 @@ describe('NoteCard Component', () => {
     userId: 'user-456',
   };
 
-  const mockDeleteRequest = jest.fn();
+  const mockDeleteRequest = jest.fn<void, [Note]>();
 
   beforeEach(() => {
     jest.clearAllMocks();

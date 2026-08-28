@@ -1,9 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { NoteEditor } from '../NoteEditor';
+import { CreateNoteInput } from '../../types';
 
 describe('NoteEditor Component', () => {
-  const mockOnSubmit = jest.fn();
-  const mockOnCancel = jest.fn();
+  const mockOnSubmit = jest.fn<Promise<void>, [CreateNoteInput]>();
+  const mockOnCancel = jest.fn<void, []>();
 
   beforeEach(() => {
     jest.clearAllMocks();

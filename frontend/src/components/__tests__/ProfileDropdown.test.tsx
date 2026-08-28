@@ -1,8 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, NavigateFunction } from 'react-router-dom';
 import { ProfileDropdown } from '../ProfileDropdown';
 
-const mockNavigate = jest.fn();
+const mockNavigate = jest.fn<ReturnType<NavigateFunction>, Parameters<NavigateFunction>>();
 jest.mock('react-router-dom', () => {
   try {
     const actual = jest.requireActual<typeof import('react-router-dom')>('react-router-dom');
@@ -21,7 +21,7 @@ describe('ProfileDropdown Component', () => {
     name: 'John Doe',
     email: 'john@example.com',
   };
-  const mockLogout = jest.fn();
+  const mockLogout = jest.fn<Promise<void>, []>();
 
   beforeEach(() => {
     jest.clearAllMocks();

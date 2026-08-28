@@ -1,5 +1,8 @@
+// @ts-check
+
 const tsJest = require('ts-jest').default;
 
+/** @type {import('@jest/transform').SyncTransformer<unknown>} */
 const transformer = tsJest.createTransformer({
   tsconfig: {
     jsx: 'react-jsx',
@@ -16,9 +19,19 @@ const transformer = tsJest.createTransformer({
   },
 });
 
-module.exports = {
+/** @type {import('@jest/transform').SyncTransformer<unknown>} */
+const customTransformer = {
+  /**
+   * @param {string} src
+   * @param {string} filename
+   * @param {import('@jest/transform').TransformOptions<unknown>} config
+   * @returns {import('@jest/transform').TransformedSource}
+   */
   process(src, filename, config) {
     const modifiedSrc = src.replace(/import\.meta\.env/g, 'process.env');
     return transformer.process(modifiedSrc, filename, config);
   },
 };
+
+module.exports = customTransformer;
+
