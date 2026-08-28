@@ -1,14 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { Dashboard } from '../Dashboard';
 import { notesApi } from '../../services/api';
 
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
+const mockNavigate = jest.fn();
+jest.mock('react-router-dom', () => {
   let actual: typeof import('react-router-dom');
   try {
-    actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    actual = jest.requireActual<typeof import('react-router-dom')>('react-router-dom');
   } catch (error) {
     throw new Error(`Failed to import actual react-router-dom module in test setup: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -18,10 +17,10 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-vi.mock('../../services/api', () => ({
+jest.mock('../../services/api', () => ({
   notesApi: {
-    list: vi.fn(),
-    delete: vi.fn(),
+    list: jest.fn(),
+    delete: jest.fn(),
   },
   ApiError: class ApiError extends Error {
     constructor(public message: string, public statusCode: number = 400) {
@@ -51,7 +50,7 @@ describe('Dashboard Component', () => {
   ];
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   const renderComponent = (): ReturnType<typeof render> => {
@@ -63,7 +62,7 @@ describe('Dashboard Component', () => {
   };
 
   it('renders loading state initially and then displays notes grid', async () => {
-    vi.mocked(notesApi.list).mockResolvedValueOnce({
+    jest.mocked(notesApi.list).mockResolvedValueOnce({
       notes: mockNotes,
       total: 2,
       page: 1,
@@ -84,7 +83,7 @@ describe('Dashboard Component', () => {
   });
 
   it('displays empty state when user has no notes', async () => {
-    vi.mocked(notesApi.list).mockResolvedValueOnce({
+    jest.mocked(notesApi.list).mockResolvedValueOnce({
       notes: [],
       total: 0,
       page: 1,
@@ -103,7 +102,7 @@ describe('Dashboard Component', () => {
   });
 
   it('navigates to /notes/new when Create Note button is clicked', async () => {
-    vi.mocked(notesApi.list).mockResolvedValueOnce({
+    jest.mocked(notesApi.list).mockResolvedValueOnce({
       notes: [],
       total: 0,
       page: 1,
@@ -124,14 +123,14 @@ describe('Dashboard Component', () => {
   });
 
   it('opens delete modal and confirms deletion of a note', async () => {
-    vi.mocked(notesApi.list).mockResolvedValueOnce({
+    jest.mocked(notesApi.list).mockResolvedValueOnce({
       notes: mockNotes,
       total: 2,
       page: 1,
       limit: 10,
       totalPages: 1,
     });
-    vi.mocked(notesApi.delete).mockResolvedValueOnce({ deleted: true, noteId: 'note-1' });
+    jest.mocked(notesApi.delete).mockResolvedValueOnce({ deleted: true, noteId: 'note-1' });
 
     renderComponent();
 
@@ -157,7 +156,7 @@ describe('Dashboard Component', () => {
   });
 
   it('triggers notesApi.list with updated sort options when sort dropdown changes', async () => {
-    vi.mocked(notesApi.list).mockResolvedValue({
+    jest.mocked(notesApi.list).mockResolvedValue({
       notes: mockNotes,
       total: 2,
       page: 1,

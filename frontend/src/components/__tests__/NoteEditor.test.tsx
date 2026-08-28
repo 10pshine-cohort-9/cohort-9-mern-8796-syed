@@ -1,13 +1,12 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { NoteEditor } from '../NoteEditor';
 
 describe('NoteEditor Component', () => {
-  const mockOnSubmit = vi.fn();
-  const mockOnCancel = vi.fn();
+  const mockOnSubmit = jest.fn();
+  const mockOnCancel = jest.fn();
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   const renderComponent = (mode: 'create' | 'edit' = 'create', initialTitle = '', initialContent = ''): ReturnType<typeof render> => {

@@ -1,12 +1,11 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { NoteCard } from '../NoteCard';
 import { Note } from '../../types';
 
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
+const mockNavigate = jest.fn();
+jest.mock('react-router-dom', () => {
+  const actual = jest.requireActual<typeof import('react-router-dom')>('react-router-dom');
   return {
     ...actual,
     useNavigate: () => mockNavigate,
@@ -24,10 +23,10 @@ describe('NoteCard Component', () => {
     userId: 'user-456',
   };
 
-  const mockDeleteRequest = vi.fn();
+  const mockDeleteRequest = jest.fn();
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   const renderComponent = (isDeleting = false): ReturnType<typeof render> => {
