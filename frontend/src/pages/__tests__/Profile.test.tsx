@@ -3,12 +3,12 @@ import { BrowserRouter } from 'react-router-dom';
 import { Profile } from '../Profile';
 import * as AuthContextModule from '../../context/AuthContext';
 import { authApi } from '../../services/api';
-import { User } from '../../types';
+import { LoginInput, RegisterInput, User } from '../../types';
 
 jest.mock('../../services/api', () => ({
   authApi: {
-    updateProfile: jest.fn(),
-    changePassword: jest.fn(),
+    updateProfile: jest.fn<ReturnType<typeof authApi.updateProfile>, Parameters<typeof authApi.updateProfile>>(),
+    changePassword: jest.fn<ReturnType<typeof authApi.changePassword>, Parameters<typeof authApi.changePassword>>(),
   },
   ApiError: class ApiError extends Error {
     constructor(public message: string, public statusCode: number = 400) {
@@ -23,9 +23,9 @@ describe('Profile Page Component', () => {
     name: 'Jane Doe',
     email: 'jane@example.com',
   };
-  const mockUpdateUser = jest.fn();
-  const mockUpdateToken = jest.fn();
-  const mockRefreshUser = jest.fn();
+  const mockUpdateUser = jest.fn<void, [User]>();
+  const mockUpdateToken = jest.fn<void, [string]>();
+  const mockRefreshUser = jest.fn<Promise<void>, []>();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -34,9 +34,9 @@ describe('Profile Page Component', () => {
       token: 'test-token',
       isAuthenticated: true,
       loading: false,
-      login: jest.fn(),
-      register: jest.fn(),
-      logout: jest.fn(),
+      login: jest.fn<Promise<void>, [LoginInput]>(),
+      register: jest.fn<Promise<void>, [RegisterInput]>(),
+      logout: jest.fn<Promise<void>, []>(),
       updateUser: mockUpdateUser,
       updateToken: mockUpdateToken,
       refreshUser: mockRefreshUser,

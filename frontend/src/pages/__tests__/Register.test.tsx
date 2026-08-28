@@ -1,9 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, NavigateFunction } from 'react-router-dom';
 import { Register } from '../Register';
 import * as AuthContextModule from '../../context/AuthContext';
+import { LoginInput, RegisterInput, User } from '../../types';
 
-const mockNavigate = jest.fn();
+const mockNavigate = jest.fn<ReturnType<NavigateFunction>, Parameters<NavigateFunction>>();
 jest.mock('react-router-dom', () => {
   let actual: typeof import('react-router-dom');
   try {
@@ -18,7 +19,7 @@ jest.mock('react-router-dom', () => {
 });
 
 describe('Register (Signup) Component', () => {
-  const mockRegister = jest.fn();
+  const mockRegister = jest.fn<Promise<void>, [RegisterInput]>();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -27,11 +28,11 @@ describe('Register (Signup) Component', () => {
       token: null,
       isAuthenticated: false,
       loading: false,
-      login: jest.fn(),
+      login: jest.fn<Promise<void>, [LoginInput]>(),
       register: mockRegister,
-      logout: jest.fn(),
-      updateUser: jest.fn(),
-      refreshUser: jest.fn(),
+      logout: jest.fn<Promise<void>, []>(),
+      updateUser: jest.fn<void, [User]>(),
+      refreshUser: jest.fn<Promise<void>, []>(),
     });
   });
 
