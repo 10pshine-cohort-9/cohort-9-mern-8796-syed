@@ -29,6 +29,20 @@ interface NoteEditorProps {
   onCancel: () => void;
 }
 
+const getRandomToken = (): string => {
+  if (typeof window !== 'undefined' && window.crypto) {
+    if (typeof window.crypto.randomUUID === 'function') {
+      return window.crypto.randomUUID().replace(/-/g, '');
+    }
+    if (typeof window.crypto.getRandomValues === 'function') {
+      const array = new Uint32Array(2);
+      window.crypto.getRandomValues(array);
+      return Array.from(array, (num) => num.toString(36)).join('');
+    }
+  }
+  return Date.now().toString(36);
+};
+
 export const NoteEditor: React.FC<NoteEditorProps> = ({
   initialTitle = '',
   initialContent = '',
@@ -93,8 +107,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     if (!text) return '';
     let html = text;
 
-    const renderToken = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+    const renderToken = getRandomToken() + Date.now().toString(36);
     const placeholders: { token: string; html: string; isBlock: boolean }[] = [];
+    const uncheckedToken = `___TASK_UNCHECKED_${renderToken}___`;
+    const checkedToken = `___TASK_CHECKED_${renderToken}___`;
 
     // Helper to escape HTML characters inside code blocks to prevent raw HTML execution/breakage
     const escapeHtml = (str: string): string =>
@@ -125,9 +141,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     // Blockquotes
     html = html.replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>');
 
-    // Task lists
-    html = html.replace(/^[ \t]*-[ \t]*\[[ \t]*\][ \t]+(.*$)/gim, '<ul><li><input type="checkbox" disabled /> $1</li></ul>');
-    html = html.replace(/^[ \t]*-[ \t]*\[[ \t]*[xX][ \t]*\][ \t]+(.*$)/gim, '<ul><li><input type="checkbox" checked disabled /> $1</li></ul>');
+    // Task lists (using safe placeholder tokens before DOMPurify sanitization)
+    html = html.replace(/^[ \t]*-[ \t]*\[[ \t]*\][ \t]+(.*)/gm, `<ul><li>${uncheckedToken} $1</li></ul>`);
+    html = html.replace(/^[ \t]*-[ \t]*\[[ \t]*[xX][ \t]*\][ \t]+(.*)/gm, `<ul><li>${checkedToken} $1</li></ul>`);
 
     // Bullet Lists (accepting optional leading whitespace)
     html = html.replace(/^[ \t]*-[ \t]+(.*$)/gim, '<ul><li>$1</li></ul>');
@@ -176,7 +192,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       html = html.split(token).join(codeHtml);
     });
 
-    return DOMPurify.sanitize(html, {
+    let sanitizedHtml = DOMPurify.sanitize(html, {
       ALLOWED_TAGS: [
         'b',
         'strong',
@@ -199,10 +215,18 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         'span',
         'blockquote',
         'a',
-        'input',
       ],
-      ALLOWED_ATTR: ['href', 'target', 'rel', 'type', 'checked', 'disabled'],
+      ALLOWED_ATTR: ['href', 'target', 'rel'],
     });
+
+    // Restore safe checkbox markup for task lists after DOMPurify sanitization
+    sanitizedHtml = sanitizedHtml
+      .split(uncheckedToken)
+      .join('<input type="checkbox" disabled />')
+      .split(checkedToken)
+      .join('<input type="checkbox" checked disabled />');
+
+    return sanitizedHtml;
   };
 
   const previewHtml = useMemo(() => {
@@ -243,7 +267,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     let cleanedText = selectedText;
 
     // Protect inline code spans (wrapped in backticks) before cleaning up markdown and HTML
-    const clearFmtTokenBase = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+    const clearFmtTokenBase = getRandomToken() + Date.now().toString(36);
     const codePlaceholders: { token: string; original: string }[] = [];
 
     cleanedText = cleanedText.replace(/`([^`]+)`/g, (match) => {

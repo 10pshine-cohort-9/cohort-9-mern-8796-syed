@@ -4,6 +4,7 @@ node_modules/
 logs/
 coverage/
 .nyc_output/
+.scannerwork/
 dist/
 build/
 .DS_Store

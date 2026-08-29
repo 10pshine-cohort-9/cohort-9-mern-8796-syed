@@ -2,7 +2,7 @@
 
 const tsJest = require('ts-jest').default;
 
-/** @type {import('@jest/transform').SyncTransformer<unknown>} */
+/** @type {import('@jest/transform').SyncTransformer<any>} */
 const transformer = tsJest.createTransformer({
   tsconfig: {
     jsx: 'react-jsx',
@@ -19,12 +19,12 @@ const transformer = tsJest.createTransformer({
   },
 });
 
-/** @type {import('@jest/transform').SyncTransformer<unknown>} */
+/** @type {import('@jest/transform').SyncTransformer<any>} */
 const customTransformer = {
   /**
    * @param {string} src
    * @param {string} filename
-   * @param {import('@jest/transform').TransformOptions<unknown>} config
+   * @param {import('@jest/transform').TransformOptions<any>} config
    * @returns {import('@jest/transform').TransformedSource}
    */
   process(src, filename, config) {
