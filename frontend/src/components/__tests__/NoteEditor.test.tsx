@@ -364,43 +364,59 @@ describe('NoteEditor Component', () => {
     });
 
     it('validates title length when exceeding 200 characters', async () => {
-      renderComponent('create', 'a'.repeat(201), 'Valid Content');
-      fireEvent.click(screen.getByRole('button', { name: 'Create Note' }));
+      try {
+        renderComponent('create', 'a'.repeat(201), 'Valid Content');
+        fireEvent.click(screen.getByRole('button', { name: 'Create Note' }));
 
-      expect(await screen.findByText('Title cannot exceed 200 characters.')).toBeInTheDocument();
-      expect(mockOnSubmit).not.toHaveBeenCalled();
+        expect(await screen.findByText('Title cannot exceed 200 characters.')).toBeInTheDocument();
+        expect(mockOnSubmit).not.toHaveBeenCalled();
+      } catch (error) {
+        throw new Error(`Title validation test failed: ${(error as Error).message}`);
+      }
     });
 
     it('clears field errors when user edits title or content after failed submit', async () => {
-      renderComponent('create');
-      fireEvent.click(screen.getByRole('button', { name: 'Create Note' }));
+      try {
+        renderComponent('create');
+        fireEvent.click(screen.getByRole('button', { name: 'Create Note' }));
 
-      expect(await screen.findByText('Title is required.')).toBeInTheDocument();
-      expect(screen.getByText('Content is required.')).toBeInTheDocument();
+        expect(await screen.findByText('Title is required.')).toBeInTheDocument();
+        expect(screen.getByText('Content is required.')).toBeInTheDocument();
 
-      fireEvent.change(screen.getByLabelText(/title/i), { target: { value: 'New Title' } });
-      expect(screen.queryByText('Title is required.')).not.toBeInTheDocument();
+        fireEvent.change(screen.getByLabelText(/title/i), { target: { value: 'New Title' } });
+        expect(screen.queryByText('Title is required.')).not.toBeInTheDocument();
 
-      fireEvent.change(screen.getByLabelText(/content/i), { target: { value: 'New Content' } });
-      expect(screen.queryByText('Content is required.')).not.toBeInTheDocument();
+        fireEvent.change(screen.getByLabelText(/content/i), { target: { value: 'New Content' } });
+        expect(screen.queryByText('Content is required.')).not.toBeInTheDocument();
+      } catch (error) {
+        throw new Error(`Clearing field errors test failed: ${(error as Error).message}`);
+      }
     });
 
     it('handles submission errors when onSubmit throws an Error instance', async () => {
-      mockOnSubmit.mockRejectedValueOnce(new Error('Failed to save note to server.'));
-      renderComponent('create', 'Title', 'Content');
+      try {
+        mockOnSubmit.mockRejectedValueOnce(new Error('Failed to save note to server.'));
+        renderComponent('create', 'Title', 'Content');
 
-      fireEvent.click(screen.getByRole('button', { name: 'Create Note' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Create Note' }));
 
-      expect(await screen.findByText('Failed to save note to server.')).toBeInTheDocument();
+        expect(await screen.findByText('Failed to save note to server.')).toBeInTheDocument();
+      } catch (error) {
+        throw new Error(`Submission Error instance test failed: ${(error as Error).message}`);
+      }
     });
 
     it('handles submission errors when onSubmit throws a non-Error object', async () => {
-      mockOnSubmit.mockRejectedValueOnce('Network error string');
-      renderComponent('create', 'Title', 'Content');
+      try {
+        mockOnSubmit.mockRejectedValueOnce('Network error string');
+        renderComponent('create', 'Title', 'Content');
 
-      fireEvent.click(screen.getByRole('button', { name: 'Create Note' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Create Note' }));
 
-      expect(await screen.findByText('An error occurred while saving the note. Please try again.')).toBeInTheDocument();
+        expect(await screen.findByText('An error occurred while saving the note. Please try again.')).toBeInTheDocument();
+      } catch (error) {
+        throw new Error(`Submission non-Error object test failed: ${(error as Error).message}`);
+      }
     });
 
     it('triggers formatting from toolbar buttons (Italic, Underline, H2, H3, Bullet, Numbered, Task, Link, Quote, Code)', () => {
