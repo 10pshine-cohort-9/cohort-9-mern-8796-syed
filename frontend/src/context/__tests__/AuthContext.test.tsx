@@ -6,19 +6,19 @@ import { authApi } from '../../services/api';
 import { ApiError } from '../../services/api';
 
 jest.mock('../../services/api', () => {
-  const originalModule = jest.requireActual('../../services/api');
+  const originalModule = jest.requireActual<typeof import('../../services/api')>('../../services/api');
   return {
     ...originalModule,
     ApiError: originalModule.ApiError,
     authApi: {
-      register: jest.fn(),
-      login: jest.fn(),
-      getMe: jest.fn(),
-      updateProfile: jest.fn(),
-      changePassword: jest.fn(),
-      logout: jest.fn(),
+      register: jest.fn<ReturnType<typeof originalModule.authApi.register>, Parameters<typeof originalModule.authApi.register>>(),
+      login: jest.fn<ReturnType<typeof originalModule.authApi.login>, Parameters<typeof originalModule.authApi.login>>(),
+      getMe: jest.fn<ReturnType<typeof originalModule.authApi.getMe>, Parameters<typeof originalModule.authApi.getMe>>(),
+      updateProfile: jest.fn<ReturnType<typeof originalModule.authApi.updateProfile>, Parameters<typeof originalModule.authApi.updateProfile>>(),
+      changePassword: jest.fn<ReturnType<typeof originalModule.authApi.changePassword>, Parameters<typeof originalModule.authApi.changePassword>>(),
+      logout: jest.fn<ReturnType<typeof originalModule.authApi.logout>, Parameters<typeof originalModule.authApi.logout>>(),
     },
-    setOnUnauthorizedCallback: jest.fn(),
+    setOnUnauthorizedCallback: jest.fn<ReturnType<typeof originalModule.setOnUnauthorizedCallback>, Parameters<typeof originalModule.setOnUnauthorizedCallback>>(),
   };
 });
 
@@ -62,7 +62,11 @@ const TestConsumer: React.FC = () => {
       <button
         type="button"
         onClick={async () => {
-          await auth.logout();
+          try {
+            await auth.logout();
+          } catch {
+            // handle error in test
+          }
         }}
       >
         LogoutBtn

@@ -11,6 +11,12 @@ import jwt from 'jsonwebtoken';
 import User from '../src/models/User';
 import TokenRevocation from '../src/models/TokenRevocation';
 import sinon from 'sinon';
+import type { SuccessApiResponse } from '../src/utils/ApiResponse';
+
+type HealthResponse = {
+    readonly status: string;
+    readonly uptime: number;
+};
 
 describe('Health Controller & Middleware Unit Tests', () => {
     afterEach(() => {
@@ -34,11 +40,12 @@ describe('Health Controller & Middleware Unit Tests', () => {
 
             getHealthStatus({} as Request, res);
 
+            const typedResponseBody = responseBody as SuccessApiResponse<HealthResponse>;
             expect(responseStatus).to.equal(200);
-            expect(responseBody).to.have.property('success', true);
-            expect(responseBody).to.have.property('message', 'Server is healthy');
-            expect((responseBody as any).data).to.have.property('status', 'ok');
-            expect((responseBody as any).data).to.have.property('uptime');
+            expect(typedResponseBody).to.have.property('success', true);
+            expect(typedResponseBody).to.have.property('message', 'Server is healthy');
+            expect(typedResponseBody.data).to.have.property('status', 'ok');
+            expect(typedResponseBody.data).to.have.property('uptime');
         });
     });
 
@@ -66,9 +73,13 @@ describe('Health Controller & Middleware Unit Tests', () => {
                 },
             } as Request;
 
-            await authMiddleware(req, {} as Response, (err) => {
-                passedError = err;
-            });
+            try {
+                await authMiddleware(req, {} as Response, (err) => {
+                    passedError = err;
+                });
+            } catch (err: unknown) {
+                expect.fail(`authMiddleware call failed unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
+            }
 
             expect(passedError).to.be.instanceOf(ApiError);
             expect((passedError as ApiError).statusCode).to.equal(401);
@@ -87,9 +98,13 @@ describe('Health Controller & Middleware Unit Tests', () => {
                     },
                 } as Request;
 
-                await authMiddleware(req, {} as Response, (err) => {
-                    passedError = err;
-                });
+                try {
+                    await authMiddleware(req, {} as Response, (err) => {
+                        passedError = err;
+                    });
+                } catch (err: unknown) {
+                    expect.fail(`authMiddleware call failed unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
+                }
 
                 expect(passedError).to.be.instanceOf(ApiError);
                 expect((passedError as ApiError).statusCode).to.equal(401);
@@ -122,10 +137,14 @@ describe('Health Controller & Middleware Unit Tests', () => {
                 },
             } as unknown as Request;
 
-            await authMiddleware(req, {} as Response, (err) => {
-                expect(err).to.be.undefined;
-                nextCalled = true;
-            });
+            try {
+                await authMiddleware(req, {} as Response, (err) => {
+                    expect(err).to.be.undefined;
+                    nextCalled = true;
+                });
+            } catch (err: unknown) {
+                expect.fail(`authMiddleware call failed unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
+            }
 
             expect(nextCalled).to.be.true;
             expect(req.authenticatedUser).to.be.an('object');
@@ -143,9 +162,13 @@ describe('Health Controller & Middleware Unit Tests', () => {
                 },
             } as Request;
 
-            await authMiddleware(req, {} as Response, (err) => {
-                passedError = err;
-            });
+            try {
+                await authMiddleware(req, {} as Response, (err) => {
+                    passedError = err;
+                });
+            } catch (err: unknown) {
+                expect.fail(`authMiddleware call failed unexpectedly: ${err instanceof Error ? err.message : String(err)}`);
+            }
 
             expect(passedError).to.be.instanceOf(ApiError);
             expect((passedError as ApiError).statusCode).to.equal(401);

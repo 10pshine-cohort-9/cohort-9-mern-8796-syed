@@ -273,9 +273,16 @@ async function applyEmailUpdate(
         return false;
     }
 
-    const existingUser = await User.findOne({ email: normalizedEmail }).select('_id').lean();
-    if (existingUser !== null && existingUser._id.toString() !== userId) {
-        throw new ApiError('Email is already registered', 409);
+    try {
+        const existingUser = await User.findOne({ email: normalizedEmail }).select('_id').lean();
+        if (existingUser !== null && existingUser._id.toString() !== userId) {
+            throw new ApiError('Email is already registered', 409);
+        }
+    } catch (error: unknown) {
+        if (error instanceof ApiError) {
+            throw error;
+        }
+        throw error;
     }
 
     user.email = normalizedEmail;

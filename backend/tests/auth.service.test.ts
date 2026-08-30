@@ -382,26 +382,30 @@ describe('Auth Service (auth.service.ts)', () => {
         });
 
         it('should not query for duplicate email when provided email is identical to current email', async () => {
-            const mockUser = {
-                _id: validUserId,
-                id: validUserId.toString(),
-                email: 'same@example.com',
-                name: 'Old Name',
-                save: sinon.stub().resolves(),
-            };
+            try {
+                const mockUser = {
+                    _id: validUserId,
+                    id: validUserId.toString(),
+                    email: 'same@example.com',
+                    name: 'Old Name',
+                    save: sinon.stub().resolves(),
+                };
 
-            sinon.stub(User, 'findById').resolves(mockUser as unknown as UserDocument);
-            const findOneStub = sinon.stub(User, 'findOne');
+                sinon.stub(User, 'findById').resolves(mockUser as unknown as UserDocument);
+                const findOneStub = sinon.stub(User, 'findOne');
 
-            const result = await authService.updateProfile(validUserId.toString(), {
-                name: 'New Name',
-                email: 'same@example.com',
-            });
+                const result = await authService.updateProfile(validUserId.toString(), {
+                    name: 'New Name',
+                    email: 'same@example.com',
+                });
 
-            expect(findOneStub.called).to.be.false;
-            expect(mockUser.name).to.equal('New Name');
-            expect(mockUser.save.calledOnce).to.be.true;
-            expect(result.name).to.equal('New Name');
+                expect(findOneStub.called).to.be.false;
+                expect(mockUser.name).to.equal('New Name');
+                expect(mockUser.save.calledOnce).to.be.true;
+                expect(result.name).to.equal('New Name');
+            } catch (err: unknown) {
+                expect.fail(`updateProfile test failed: ${err instanceof Error ? err.message : String(err)}`);
+            }
         });
     });
 
