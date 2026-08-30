@@ -97,7 +97,7 @@ describe('AuthContext', () => {
   const validTokenPayload = { exp: Math.floor(Date.now() / 1000) + 3600 };
   const expiredTokenPayload = { exp: Math.floor(Date.now() / 1000) - 3600 };
 
-  const createJwtToken = (payload: Record<string, unknown>) => {
+  const createJwtToken = (payload: Record<string, unknown>): string => {
     const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
     const body = btoa(JSON.stringify(payload));
     return `${header}.${body}.signature`;
@@ -121,10 +121,14 @@ describe('AuthContext', () => {
       </AuthProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
-    });
-    expect(screen.getByTestId('user-name')).toHaveTextContent('no-user');
+    try {
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+      });
+      expect(screen.getByTestId('user-name')).toHaveTextContent('no-user');
+    } catch (error) {
+      throw new Error(`AuthContext no token initialization test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('initializes as unauthenticated when token in localStorage is expired', async () => {
@@ -138,10 +142,14 @@ describe('AuthContext', () => {
       </AuthProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
-    });
-    expect(localStorage.getItem('token')).toBeNull();
+    try {
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+      });
+      expect(localStorage.getItem('token')).toBeNull();
+    } catch (error) {
+      throw new Error(`AuthContext expired token initialization test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('fetches authenticated user when valid token exists in localStorage', async () => {
@@ -158,10 +166,14 @@ describe('AuthContext', () => {
       </AuthProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('auth-state')).toHaveTextContent('authenticated');
-    });
-    expect(screen.getByTestId('user-name')).toHaveTextContent('Existing User');
+    try {
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-state')).toHaveTextContent('authenticated');
+      });
+      expect(screen.getByTestId('user-name')).toHaveTextContent('Existing User');
+    } catch (error) {
+      throw new Error(`AuthContext valid token fetch test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('clears token when getMe fails during initialization with 401', async () => {
@@ -176,10 +188,14 @@ describe('AuthContext', () => {
       </AuthProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
-    });
-    expect(localStorage.getItem('token')).toBeNull();
+    try {
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+      });
+      expect(localStorage.getItem('token')).toBeNull();
+    } catch (error) {
+      throw new Error(`AuthContext 401 initialization failure test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('handles login successfully', async () => {
@@ -194,19 +210,23 @@ describe('AuthContext', () => {
       </AuthProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
-    });
+    try {
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+      });
 
-    await act(async () => {
-      screen.getByText('LoginBtn').click();
-    });
+      await act(async () => {
+        screen.getByText('LoginBtn').click();
+      });
 
-    await waitFor(() => {
-      expect(screen.getByTestId('auth-state')).toHaveTextContent('authenticated');
-    });
-    expect(screen.getByTestId('user-name')).toHaveTextContent('Logged User');
-    expect(localStorage.getItem('token')).toBe('new-token-123');
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-state')).toHaveTextContent('authenticated');
+      });
+      expect(screen.getByTestId('user-name')).toHaveTextContent('Logged User');
+      expect(localStorage.getItem('token')).toBe('new-token-123');
+    } catch (error) {
+      throw new Error(`AuthContext login success test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('handles register successfully', async () => {
@@ -221,19 +241,23 @@ describe('AuthContext', () => {
       </AuthProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
-    });
+    try {
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+      });
 
-    await act(async () => {
-      screen.getByText('RegisterBtn').click();
-    });
+      await act(async () => {
+        screen.getByText('RegisterBtn').click();
+      });
 
-    await waitFor(() => {
-      expect(screen.getByTestId('auth-state')).toHaveTextContent('authenticated');
-    });
-    expect(screen.getByTestId('user-name')).toHaveTextContent('Reg User');
-    expect(localStorage.getItem('token')).toBe('reg-token-456');
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-state')).toHaveTextContent('authenticated');
+      });
+      expect(screen.getByTestId('user-name')).toHaveTextContent('Reg User');
+      expect(localStorage.getItem('token')).toBe('reg-token-456');
+    } catch (error) {
+      throw new Error(`AuthContext register success test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('handles logout successfully', async () => {
@@ -251,18 +275,22 @@ describe('AuthContext', () => {
       </AuthProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('auth-state')).toHaveTextContent('authenticated');
-    });
+    try {
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-state')).toHaveTextContent('authenticated');
+      });
 
-    await act(async () => {
-      screen.getByText('LogoutBtn').click();
-    });
+      await act(async () => {
+        screen.getByText('LogoutBtn').click();
+      });
 
-    await waitFor(() => {
-      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
-    });
-    expect(localStorage.getItem('token')).toBeNull();
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+      });
+      expect(localStorage.getItem('token')).toBeNull();
+    } catch (error) {
+      throw new Error(`AuthContext logout success test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('allows updating user profile in state', async () => {
@@ -272,15 +300,19 @@ describe('AuthContext', () => {
       </AuthProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
-    });
+    try {
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+      });
 
-    act(() => {
-      screen.getByText('UpdateUserBtn').click();
-    });
+      act(() => {
+        screen.getByText('UpdateUserBtn').click();
+      });
 
-    expect(screen.getByTestId('user-name')).toHaveTextContent('Updated Name');
+      expect(screen.getByTestId('user-name')).toHaveTextContent('Updated Name');
+    } catch (error) {
+      throw new Error(`AuthContext update user profile test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 
   it('allows updating token in state and localStorage', async () => {
@@ -290,15 +322,19 @@ describe('AuthContext', () => {
       </AuthProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
-    });
+    try {
+      await waitFor(() => {
+        expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+      });
 
-    act(() => {
-      screen.getByText('UpdateTokenBtn').click();
-    });
+      act(() => {
+        screen.getByText('UpdateTokenBtn').click();
+      });
 
-    expect(screen.getByTestId('token')).toHaveTextContent('new-manually-updated-token');
-    expect(localStorage.getItem('token')).toBe('new-manually-updated-token');
+      expect(screen.getByTestId('token')).toHaveTextContent('new-manually-updated-token');
+      expect(localStorage.getItem('token')).toBe('new-manually-updated-token');
+    } catch (error) {
+      throw new Error(`AuthContext update token test failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   });
 });

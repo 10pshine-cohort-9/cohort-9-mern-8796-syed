@@ -512,7 +512,7 @@ describe('NoteEditor Component', () => {
 
   describe('SonarQube Regex Optimization & ReDoS Prevention Tests', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      jest.useFakeTimers({ doNotFake: ['performance'] });
     });
 
     afterEach(() => {
