@@ -130,7 +130,7 @@ describe('AuthContext', () => {
   it('initializes as unauthenticated when token in localStorage is expired', async () => {
     const expiredToken = createJwtToken(expiredTokenPayload);
     localStorage.setItem('token', expiredToken);
-    (authApi.getMe as jest.Mock).mockRejectedValue(new ApiError('Token expired', 401));
+    jest.mocked(authApi.getMe).mockRejectedValue(new ApiError('Token expired', 401));
 
     render(
       <AuthProvider>
@@ -148,8 +148,8 @@ describe('AuthContext', () => {
     const validToken = createJwtToken(validTokenPayload);
     localStorage.setItem('token', validToken);
 
-    (authApi.getMe as jest.Mock).mockResolvedValue({
-      user: { id: 'u1', name: 'Existing User', email: 'exist@example.com', createdAt: '', updatedAt: '' },
+    jest.mocked(authApi.getMe).mockResolvedValue({
+      user: { id: 'u1', name: 'Existing User', email: 'exist@example.com' },
     });
 
     render(
@@ -168,7 +168,7 @@ describe('AuthContext', () => {
     const validToken = createJwtToken(validTokenPayload);
     localStorage.setItem('token', validToken);
 
-    (authApi.getMe as jest.Mock).mockRejectedValue(new ApiError('Unauthorized', 401));
+    jest.mocked(authApi.getMe).mockRejectedValue(new ApiError('Unauthorized', 401));
 
     render(
       <AuthProvider>
@@ -183,9 +183,9 @@ describe('AuthContext', () => {
   });
 
   it('handles login successfully', async () => {
-    (authApi.login as jest.Mock).mockResolvedValue({
+    jest.mocked(authApi.login).mockResolvedValue({
       token: 'new-token-123',
-      user: { id: 'u2', name: 'Logged User', email: 'test@example.com', createdAt: '', updatedAt: '' },
+      user: { id: 'u2', name: 'Logged User', email: 'test@example.com' },
     });
 
     render(
@@ -210,9 +210,9 @@ describe('AuthContext', () => {
   });
 
   it('handles register successfully', async () => {
-    (authApi.register as jest.Mock).mockResolvedValue({
+    jest.mocked(authApi.register).mockResolvedValue({
       token: 'reg-token-456',
-      user: { id: 'u3', name: 'Reg User', email: 'reg@example.com', createdAt: '', updatedAt: '' },
+      user: { id: 'u3', name: 'Reg User', email: 'reg@example.com' },
     });
 
     render(
@@ -240,10 +240,10 @@ describe('AuthContext', () => {
     const validToken = createJwtToken(validTokenPayload);
     localStorage.setItem('token', validToken);
 
-    (authApi.getMe as jest.Mock).mockResolvedValue({
-      user: { id: 'u1', name: 'User 1', email: 'u1@example.com', createdAt: '', updatedAt: '' },
+    jest.mocked(authApi.getMe).mockResolvedValue({
+      user: { id: 'u1', name: 'User 1', email: 'u1@example.com' },
     });
-    (authApi.logout as jest.Mock).mockResolvedValue({ userId: 'u1' });
+    jest.mocked(authApi.logout).mockResolvedValue({ userId: 'u1' });
 
     render(
       <AuthProvider>
