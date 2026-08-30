@@ -156,7 +156,10 @@ describe('api.ts service layer', () => {
     });
 
     it('triggers onUnauthorizedCallback on 401 response status', async () => {
-      const mockCallback = jest.fn();
+      const mockCallback = jest.fn<
+        ReturnType<NonNullable<Parameters<typeof setOnUnauthorizedCallback>[0]>>,
+        Parameters<NonNullable<Parameters<typeof setOnUnauthorizedCallback>[0]>>
+      >();
       setOnUnauthorizedCallback(mockCallback);
 
       globalThis.fetch = createFetchMock().mockResolvedValue(

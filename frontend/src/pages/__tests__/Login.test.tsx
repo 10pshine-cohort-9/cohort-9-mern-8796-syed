@@ -32,6 +32,7 @@ describe('Login Component', () => {
       register: jest.fn<Promise<void>, [RegisterInput]>(),
       logout: jest.fn<Promise<void>, []>(),
       updateUser: jest.fn<void, [User]>(),
+      updateToken: jest.fn<void, [string]>(),
       refreshUser: jest.fn<Promise<void>, []>(),
     });
   });
