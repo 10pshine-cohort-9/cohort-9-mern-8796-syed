@@ -1,6 +1,4 @@
-import type { RequestHandler } from 'express';
-
-import { asyncHandler } from '../utils/asyncHandler';
+import { asyncHandler, type AsyncRequestHandler } from '../utils/asyncHandler';
 import { sendSuccess } from '../utils/ApiResponse';
 import { ApiError } from '../utils/ApiError';
 import { createNote, deleteNote, getNoteById, getNotes, updateNote } from '../services/note.service';
@@ -24,7 +22,9 @@ type NotesListQuery = {
     readonly sortOrder?: string;
 };
 
-const createNoteHandler: RequestHandler<unknown, unknown, CreateNoteRequestBody> = async (req, res) => {
+import type { ParamsDictionary } from 'express-serve-static-core';
+
+const createNoteHandler: AsyncRequestHandler<ParamsDictionary, unknown, CreateNoteRequestBody> = async (req, res) => {
     const userId = req.authenticatedUser?.userId;
 
     if (userId === undefined) {
@@ -42,7 +42,7 @@ const createNoteHandler: RequestHandler<unknown, unknown, CreateNoteRequestBody>
     }
 };
 
-const listNotesHandler: RequestHandler<unknown, unknown, unknown, NotesListQuery> = async (req, res) => {
+const listNotesHandler: AsyncRequestHandler<ParamsDictionary, unknown, unknown, NotesListQuery> = async (req, res) => {
     const userId = req.authenticatedUser?.userId;
 
     if (userId === undefined) {
@@ -64,7 +64,7 @@ const listNotesHandler: RequestHandler<unknown, unknown, unknown, NotesListQuery
     }
 };
 
-const getNoteHandler: RequestHandler<NoteParams> = async (req, res) => {
+const getNoteHandler: AsyncRequestHandler<NoteParams> = async (req, res) => {
     const userId = req.authenticatedUser?.userId;
 
     if (userId === undefined) {
@@ -82,7 +82,7 @@ const getNoteHandler: RequestHandler<NoteParams> = async (req, res) => {
     }
 };
 
-const updateNoteHandler: RequestHandler<NoteParams, unknown, UpdateNoteRequestBody> = async (req, res) => {
+const updateNoteHandler: AsyncRequestHandler<NoteParams, unknown, UpdateNoteRequestBody> = async (req, res) => {
     const userId = req.authenticatedUser?.userId;
 
     if (userId === undefined) {
@@ -100,7 +100,7 @@ const updateNoteHandler: RequestHandler<NoteParams, unknown, UpdateNoteRequestBo
     }
 };
 
-const deleteNoteHandler: RequestHandler<NoteParams> = async (req, res) => {
+const deleteNoteHandler: AsyncRequestHandler<NoteParams> = async (req, res) => {
     const userId = req.authenticatedUser?.userId;
 
     if (userId === undefined) {

@@ -327,7 +327,7 @@ describe('NoteEditor Component', () => {
 
       // Only the valid task list checkbox should exist inside the note preview box
       const previewInputs = document.querySelectorAll('.note-preview-box input');
-      expect(previewInputs.length).toBe(1);
+      expect(previewInputs).toHaveLength(1);
       expect(previewInputs[0].getAttribute('type')).toBe('checkbox');
 
       // Ensure no text, password, or other unsafe inputs are present inside the note preview box
@@ -494,45 +494,114 @@ describe('NoteEditor Component', () => {
       expect(textarea.value).toContain('](https://example.com)');
     });
 
-    it('handles list continuation for numbered lists on Enter key', () => {
-      renderComponent('create', 'Title', '1. Item one');
+    it.each([
+      ['handles list continuation for numbered lists on Enter key', '1. Item one', '1. Item one\n2. '],
+      ['terminates empty numbered list item on Enter key', '1. Item one\n2. ', '1. Item one\n'],
+      ['terminates empty task list item on Enter key', '- [ ] ', ''],
+      ['terminates empty bullet list item on Enter key', '- ', ''],
+    ])('%s', (_description, initialContent, expectedContent) => {
+      renderComponent('create', 'Title', initialContent);
       const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
       textarea.selectionStart = textarea.value.length;
       textarea.selectionEnd = textarea.value.length;
       fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
       jest.runAllTimers();
-      expect(textarea.value).toBe('1. Item one\n2. ');
+      expect(textarea.value).toBe(expectedContent);
+    });
+  });
+
+  describe('SonarQube Regex Optimization & ReDoS Prevention Tests', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
     });
 
-    it('terminates empty numbered list item on Enter key', () => {
-      renderComponent('create', 'Title', '1. Item one\n2. ');
-      const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
-      textarea.selectionStart = textarea.value.length;
-      textarea.selectionEnd = textarea.value.length;
-      fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
-      jest.runAllTimers();
-      expect(textarea.value).toBe('1. Item one\n');
+    afterEach(() => {
+      jest.runOnlyPendingTimers();
+      jest.useRealTimers();
     });
 
-    it('terminates empty task list item on Enter key', () => {
-      renderComponent('create', 'Title', '- [ ] ');
+    it('clears formatting on lines starting with task lists without super-linear backtracking (Line 291 fix)', () => {
+      const taskLine = '- [  x  ] Task with extra space';
+      renderComponent('create', 'Title', taskLine);
+
       const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
-      textarea.selectionStart = textarea.value.length;
-      textarea.selectionEnd = textarea.value.length;
-      fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
-      jest.runAllTimers();
-      expect(textarea.value).toBe('');
+      textarea.selectionStart = 0;
+      textarea.selectionEnd = taskLine.length;
+
+      const clearBtn = screen.getByRole('button', { name: /clear formatting/i });
+      fireEvent.click(clearBtn);
+
+      expect(textarea.value).toBe('Task with extra space');
     });
 
-    it('terminates empty bullet list item on Enter key', () => {
-      renderComponent('create', 'Title', '- ');
+    it('handles long adversarial inputs for task clear formatting in linear time (Line 291 ReDoS safety)', () => {
+      const longSpaces = ' '.repeat(10000);
+      const adversarialInput = `- [${longSpaces}] Non-matching task bracket without closing bracket`;
+      renderComponent('create', 'Title', adversarialInput);
+
+      const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+      textarea.selectionStart = 0;
+      textarea.selectionEnd = adversarialInput.length;
+
+      const startTime = performance.now();
+      const clearBtn = screen.getByRole('button', { name: /clear formatting/i });
+      fireEvent.click(clearBtn);
+      const endTime = performance.now();
+
+      expect(endTime - startTime).toBeLessThan(100);
+    });
+
+    it('handles task list continuation on Enter with whitespace in linear time (Line 356 & 360 fix)', () => {
+      const longContent = 'x'.repeat(10000);
+      renderComponent('create', 'Title', `  - [ x ] ${longContent}`);
+
       const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
       textarea.selectionStart = textarea.value.length;
       textarea.selectionEnd = textarea.value.length;
+
+      const startTime = performance.now();
       fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
       jest.runAllTimers();
-      expect(textarea.value).toBe('');
+      const endTime = performance.now();
+
+      expect(endTime - startTime).toBeLessThan(100);
+      expect(textarea.value).toBe(`  - [ x ] ${longContent}\n  - [ ] `);
+    });
+
+    it('handles bullet list continuation on Enter with long line content in linear time (Line 366 fix)', () => {
+      const longContent = 'a'.repeat(20000);
+      renderComponent('create', 'Title', `  - ${longContent}`);
+
+      const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+      textarea.selectionStart = textarea.value.length;
+      textarea.selectionEnd = textarea.value.length;
+
+      const startTime = performance.now();
+      fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+      jest.runAllTimers();
+      const endTime = performance.now();
+
+      expect(endTime - startTime).toBeLessThan(100);
+      expect(textarea.value).toBe(`  - ${longContent}\n  - `);
+    });
+
+    it('handles numbered list continuation on Enter with long line content in linear time (Line 376 fix)', () => {
+      const longContent = 'b'.repeat(20000);
+      renderComponent('create', 'Title', `   42. ${longContent}`);
+
+      const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+      textarea.selectionStart = textarea.value.length;
+      textarea.selectionEnd = textarea.value.length;
+
+      const startTime = performance.now();
+      fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+      jest.runAllTimers();
+      const endTime = performance.now();
+
+      expect(endTime - startTime).toBeLessThan(100);
+      expect(textarea.value).toBe(`   42. ${longContent}\n   43. `);
     });
   });
 });
+
 

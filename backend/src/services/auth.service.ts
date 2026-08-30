@@ -21,7 +21,7 @@ export type AuthResult = {
 };
 
 const BCRYPT_SALT_ROUNDS = 12;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync('dummy_password_never_matches_123', BCRYPT_SALT_ROUNDS);
 
 function assertString(value: unknown, fieldName: string): asserts value is string {
@@ -255,6 +255,33 @@ export type ChangePasswordInput = {
     readonly newPassword: string;
 };
 
+function applyNameUpdate(user: { name: string }, nameInput: string): boolean {
+    const name = validateName(nameInput);
+    user.name = name;
+    return true;
+}
+
+async function applyEmailUpdate(
+    user: { email: string },
+    userId: string,
+    emailInput: string,
+): Promise<boolean> {
+    validateEmail(emailInput);
+    const normalizedEmail = normalizeEmail(emailInput);
+
+    if (normalizedEmail === user.email) {
+        return false;
+    }
+
+    const existingUser = await User.findOne({ email: normalizedEmail }).select('_id').lean();
+    if (existingUser !== null && existingUser._id.toString() !== userId) {
+        throw new ApiError('Email is already registered', 409);
+    }
+
+    user.email = normalizedEmail;
+    return true;
+}
+
 export async function updateProfile(userId: string, input: UpdateProfileInput): Promise<PublicUser> {
     try {
         const user = await User.findById(userId);
@@ -266,23 +293,12 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
         let hasUpdates = false;
 
         if (input.name !== undefined) {
-            const name = validateName(input.name);
-            user.name = name;
-            hasUpdates = true;
+            hasUpdates = applyNameUpdate(user, input.name) || hasUpdates;
         }
 
         if (input.email !== undefined) {
-            validateEmail(input.email);
-            const normalizedEmail = normalizeEmail(input.email);
-
-            if (normalizedEmail !== user.email) {
-                const existingUser = await User.findOne({ email: normalizedEmail }).select('_id').lean();
-                if (existingUser !== null && existingUser._id.toString() !== userId) {
-                    throw new ApiError('Email is already registered', 409);
-                }
-                user.email = normalizedEmail;
-                hasUpdates = true;
-            }
+            const emailUpdated = await applyEmailUpdate(user, userId, input.email);
+            hasUpdates = emailUpdated || hasUpdates;
         }
 
         if (!hasUpdates) {

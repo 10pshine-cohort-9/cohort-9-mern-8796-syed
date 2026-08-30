@@ -1,0 +1,300 @@
+import React from 'react';
+import { render, screen, act, waitFor } from '@testing-library/react';
+import { AuthProvider, useAuth } from '../AuthContext';
+import { authApi } from '../../services/api';
+
+import { ApiError } from '../../services/api';
+
+jest.mock('../../services/api', () => {
+  const originalModule = jest.requireActual('../../services/api');
+  return {
+    ...originalModule,
+    ApiError: originalModule.ApiError,
+    authApi: {
+      register: jest.fn(),
+      login: jest.fn(),
+      getMe: jest.fn(),
+      updateProfile: jest.fn(),
+      changePassword: jest.fn(),
+      logout: jest.fn(),
+    },
+    setOnUnauthorizedCallback: jest.fn(),
+  };
+});
+
+// Helper component to consume useAuth hook in tests
+const TestConsumer: React.FC = () => {
+  const auth = useAuth();
+  return (
+    <div>
+      <div data-testid="auth-state">
+        {auth.loading ? 'loading' : auth.isAuthenticated ? 'authenticated' : 'unauthenticated'}
+      </div>
+      <div data-testid="user-name">{auth.user?.name || 'no-user'}</div>
+      <div data-testid="token">{auth.token || 'no-token'}</div>
+
+      <button
+        type="button"
+        onClick={async () => {
+          try {
+            await auth.login({ email: 'test@example.com', password: 'password123' });
+          } catch {
+            // handle error in test if needed
+          }
+        }}
+      >
+        LoginBtn
+      </button>
+
+      <button
+        type="button"
+        onClick={async () => {
+          try {
+            await auth.register({ name: 'Reg User', email: 'reg@example.com', password: 'password123' });
+          } catch {
+            // handle error in test
+          }
+        }}
+      >
+        RegisterBtn
+      </button>
+
+      <button
+        type="button"
+        onClick={async () => {
+          await auth.logout();
+        }}
+      >
+        LogoutBtn
+      </button>
+
+      <button
+        type="button"
+        onClick={() => {
+          auth.updateUser({ id: '1', name: 'Updated Name', email: 'updated@example.com' });
+        }}
+      >
+        UpdateUserBtn
+      </button>
+
+      <button
+        type="button"
+        onClick={() => {
+          auth.updateToken?.('new-manually-updated-token');
+        }}
+      >
+        UpdateTokenBtn
+      </button>
+    </div>
+  );
+};
+
+describe('AuthContext', () => {
+  const validTokenPayload = { exp: Math.floor(Date.now() / 1000) + 3600 };
+  const expiredTokenPayload = { exp: Math.floor(Date.now() / 1000) - 3600 };
+
+  const createJwtToken = (payload: Record<string, unknown>) => {
+    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+    const body = btoa(JSON.stringify(payload));
+    return `${header}.${body}.signature`;
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    jest.clearAllMocks();
+  });
+
+  it('throws error when useAuth is used outside of AuthProvider', () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() => render(<TestConsumer />)).toThrow('useAuth must be used within an AuthProvider');
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('initializes as unauthenticated when no token exists in localStorage', async () => {
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+    });
+    expect(screen.getByTestId('user-name')).toHaveTextContent('no-user');
+  });
+
+  it('initializes as unauthenticated when token in localStorage is expired', async () => {
+    const expiredToken = createJwtToken(expiredTokenPayload);
+    localStorage.setItem('token', expiredToken);
+    (authApi.getMe as jest.Mock).mockRejectedValue(new ApiError('Token expired', 401));
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+    });
+    expect(localStorage.getItem('token')).toBeNull();
+  });
+
+  it('fetches authenticated user when valid token exists in localStorage', async () => {
+    const validToken = createJwtToken(validTokenPayload);
+    localStorage.setItem('token', validToken);
+
+    (authApi.getMe as jest.Mock).mockResolvedValue({
+      user: { id: 'u1', name: 'Existing User', email: 'exist@example.com', createdAt: '', updatedAt: '' },
+    });
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state')).toHaveTextContent('authenticated');
+    });
+    expect(screen.getByTestId('user-name')).toHaveTextContent('Existing User');
+  });
+
+  it('clears token when getMe fails during initialization with 401', async () => {
+    const validToken = createJwtToken(validTokenPayload);
+    localStorage.setItem('token', validToken);
+
+    (authApi.getMe as jest.Mock).mockRejectedValue(new ApiError('Unauthorized', 401));
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+    });
+    expect(localStorage.getItem('token')).toBeNull();
+  });
+
+  it('handles login successfully', async () => {
+    (authApi.login as jest.Mock).mockResolvedValue({
+      token: 'new-token-123',
+      user: { id: 'u2', name: 'Logged User', email: 'test@example.com', createdAt: '', updatedAt: '' },
+    });
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+    });
+
+    await act(async () => {
+      screen.getByText('LoginBtn').click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state')).toHaveTextContent('authenticated');
+    });
+    expect(screen.getByTestId('user-name')).toHaveTextContent('Logged User');
+    expect(localStorage.getItem('token')).toBe('new-token-123');
+  });
+
+  it('handles register successfully', async () => {
+    (authApi.register as jest.Mock).mockResolvedValue({
+      token: 'reg-token-456',
+      user: { id: 'u3', name: 'Reg User', email: 'reg@example.com', createdAt: '', updatedAt: '' },
+    });
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+    });
+
+    await act(async () => {
+      screen.getByText('RegisterBtn').click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state')).toHaveTextContent('authenticated');
+    });
+    expect(screen.getByTestId('user-name')).toHaveTextContent('Reg User');
+    expect(localStorage.getItem('token')).toBe('reg-token-456');
+  });
+
+  it('handles logout successfully', async () => {
+    const validToken = createJwtToken(validTokenPayload);
+    localStorage.setItem('token', validToken);
+
+    (authApi.getMe as jest.Mock).mockResolvedValue({
+      user: { id: 'u1', name: 'User 1', email: 'u1@example.com', createdAt: '', updatedAt: '' },
+    });
+    (authApi.logout as jest.Mock).mockResolvedValue({ userId: 'u1' });
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state')).toHaveTextContent('authenticated');
+    });
+
+    await act(async () => {
+      screen.getByText('LogoutBtn').click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+    });
+    expect(localStorage.getItem('token')).toBeNull();
+  });
+
+  it('allows updating user profile in state', async () => {
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+    });
+
+    act(() => {
+      screen.getByText('UpdateUserBtn').click();
+    });
+
+    expect(screen.getByTestId('user-name')).toHaveTextContent('Updated Name');
+  });
+
+  it('allows updating token in state and localStorage', async () => {
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('auth-state')).toHaveTextContent('unauthenticated');
+    });
+
+    act(() => {
+      screen.getByText('UpdateTokenBtn').click();
+    });
+
+    expect(screen.getByTestId('token')).toHaveTextContent('new-manually-updated-token');
+    expect(localStorage.getItem('token')).toBe('new-manually-updated-token');
+  });
+});
