@@ -1,14 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { BrowserRouter, NavigateFunction, Route, Routes } from 'react-router-dom';
 import { NoteEditorPage } from '../NoteEditorPage';
 import { notesApi } from '../../services/api';
 
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
+const mockNavigate = jest.fn<ReturnType<NavigateFunction>, Parameters<NavigateFunction>>();
+jest.mock('react-router-dom', () => {
   let actual: typeof import('react-router-dom');
   try {
-    actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    actual = jest.requireActual<typeof import('react-router-dom')>('react-router-dom');
   } catch (error) {
     throw new Error(`Failed to import actual react-router-dom module in test setup: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -18,11 +17,11 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-vi.mock('../../services/api', () => ({
+jest.mock('../../services/api', () => ({
   notesApi: {
-    getById: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
+    getById: jest.fn<ReturnType<typeof notesApi.getById>, Parameters<typeof notesApi.getById>>(),
+    create: jest.fn<ReturnType<typeof notesApi.create>, Parameters<typeof notesApi.create>>(),
+    update: jest.fn<ReturnType<typeof notesApi.update>, Parameters<typeof notesApi.update>>(),
   },
   ApiError: class ApiError extends Error {
     constructor(public message: string, public statusCode: number = 400) {
@@ -33,7 +32,7 @@ vi.mock('../../services/api', () => ({
 
 describe('NoteEditorPage Component', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   const renderInCreateMode = (): ReturnType<typeof render> => {
@@ -63,7 +62,7 @@ describe('NoteEditorPage Component', () => {
   });
 
   it('fetches existing note details and populates form in edit mode', async () => {
-    vi.mocked(notesApi.getById).mockResolvedValueOnce({
+    jest.mocked(notesApi.getById).mockResolvedValueOnce({
       note: {
         _id: 'note-123',
         title: 'Existing Note Title',
@@ -88,7 +87,7 @@ describe('NoteEditorPage Component', () => {
   });
 
   it('displays error card when fetching note details fails in edit mode', async () => {
-    vi.mocked(notesApi.getById).mockRejectedValueOnce(new Error('Note not found'));
+    jest.mocked(notesApi.getById).mockRejectedValueOnce(new Error('Note not found'));
 
     renderInEditMode('missing-note');
 
@@ -101,7 +100,7 @@ describe('NoteEditorPage Component', () => {
   });
 
   it('creates new note and navigates home when submitting in create mode', async () => {
-    vi.mocked(notesApi.create).mockResolvedValueOnce({
+    jest.mocked(notesApi.create).mockResolvedValueOnce({
       note: {
         _id: 'new-note-id',
         title: 'Created Title',

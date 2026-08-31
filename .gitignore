@@ -1,0 +1,4 @@
+.scannerwork/
+coverage/
+frontend/coverage/
+backend/coverage/

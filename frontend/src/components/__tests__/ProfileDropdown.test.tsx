@@ -1,12 +1,11 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { BrowserRouter, NavigateFunction } from 'react-router-dom';
 import { ProfileDropdown } from '../ProfileDropdown';
 
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
+const mockNavigate = jest.fn<ReturnType<NavigateFunction>, Parameters<NavigateFunction>>();
+jest.mock('react-router-dom', () => {
   try {
-    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    const actual = jest.requireActual<typeof import('react-router-dom')>('react-router-dom');
     return {
       ...actual,
       useNavigate: () => mockNavigate,
@@ -22,10 +21,10 @@ describe('ProfileDropdown Component', () => {
     name: 'John Doe',
     email: 'john@example.com',
   };
-  const mockLogout = vi.fn();
+  const mockLogout = jest.fn<Promise<void>, []>();
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   const renderComponent = (): ReturnType<typeof render> => {

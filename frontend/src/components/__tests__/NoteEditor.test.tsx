@@ -1,13 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { NoteEditor } from '../NoteEditor';
+import { CreateNoteInput } from '../../types';
 
 describe('NoteEditor Component', () => {
-  const mockOnSubmit = vi.fn();
-  const mockOnCancel = vi.fn();
+  const mockOnSubmit = jest.fn<Promise<void>, [CreateNoteInput]>();
+  const mockOnCancel = jest.fn<void, []>();
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   const renderComponent = (mode: 'create' | 'edit' = 'create', initialTitle = '', initialContent = ''): ReturnType<typeof render> => {
@@ -233,4 +233,375 @@ describe('NoteEditor Component', () => {
     expect(screen.getByText('indented bullet item').closest('ul')).not.toBeNull();
     expect(screen.getByText('indented numbered item').closest('ol')).not.toBeNull();
   });
+
+  describe('getRandomToken Security and Random Fallback Behavior', () => {
+    const originalCrypto = window.crypto;
+
+    afterEach(() => {
+      Object.defineProperty(window, 'crypto', {
+        value: originalCrypto,
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    it('uses window.crypto.getRandomValues when window.crypto.randomUUID is unavailable', () => {
+      const mockGetRandomValues = jest.fn((array: Uint32Array) => {
+        array[0] = 12345;
+        array[1] = 67890;
+        return array;
+      });
+
+      Object.defineProperty(window, 'crypto', {
+        value: {
+          getRandomValues: mockGetRandomValues,
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      renderComponent('create', 'Title', '- [ ] Task with getRandomValues');
+      const previewTab = screen.getByRole('tab', { name: /preview/i });
+      fireEvent.click(previewTab);
+
+      expect(mockGetRandomValues).toHaveBeenCalled();
+      expect(screen.getByRole('checkbox')).toBeInTheDocument();
+    });
+
+    it('falls back to Date.now() when window.crypto is unavailable', () => {
+      Object.defineProperty(window, 'crypto', {
+        value: undefined,
+        writable: true,
+        configurable: true,
+      });
+
+      renderComponent('create', 'Title', '- [ ] Fallback Task');
+      const previewTab = screen.getByRole('tab', { name: /preview/i });
+      fireEvent.click(previewTab);
+
+      expect(screen.getByRole('checkbox')).toBeInTheDocument();
+    });
+
+    it('handles fallback in getRandomToken when window.crypto exists but has no randomUUID or getRandomValues', () => {
+      Object.defineProperty(window, 'crypto', {
+        value: {},
+        writable: true,
+        configurable: true,
+      });
+
+      renderComponent('create', 'Title', '- [x] Completed Fallback Task');
+      const previewTab = screen.getByRole('tab', { name: /preview/i });
+      fireEvent.click(previewTab);
+
+      expect(screen.getByRole('checkbox')).toBeChecked();
+    });
+  });
+
+  describe('DOMPurify Sanitization & Input Security', () => {
+    it('renders task-list checkboxes as disabled checkbox input elements', () => {
+      renderComponent('create', 'Title', '- [ ] Unchecked item\n- [x] Checked item');
+      const previewTab = screen.getByRole('tab', { name: /preview/i });
+      fireEvent.click(previewTab);
+
+      const checkboxes = screen.getAllByRole('checkbox');
+      expect(checkboxes).toHaveLength(2);
+      expect(checkboxes[0]).not.toBeChecked();
+      expect(checkboxes[0]).toBeDisabled();
+      expect(checkboxes[1]).toBeChecked();
+      expect(checkboxes[1]).toBeDisabled();
+    });
+
+    it('sanitizes and strips raw unsafe input tags like <input type="text"> and <input type="password">', () => {
+      const unsafeContent = `
+        - [ ] Valid task item
+        <input type="text" name="malicious_text" value="stolen_data" />
+        <input type="password" name="malicious_pass" value="secret" />
+        <input type="button" value="Click me" />
+        <input type="file" />
+        <input type="hidden" name="csrf" value="123" />
+      `;
+
+      renderComponent('create', 'Title', unsafeContent);
+      const previewTab = screen.getByRole('tab', { name: /preview/i });
+      fireEvent.click(previewTab);
+
+      // Only the valid task list checkbox should exist inside the note preview box
+      const previewInputs = document.querySelectorAll('.note-preview-box input');
+      expect(previewInputs).toHaveLength(1);
+      expect(previewInputs[0].getAttribute('type')).toBe('checkbox');
+
+      // Ensure no text, password, or other unsafe inputs are present inside the note preview box
+      expect(document.querySelector('.note-preview-box input[type="text"]')).toBeNull();
+      expect(document.querySelector('.note-preview-box input[type="password"]')).toBeNull();
+      expect(document.querySelector('.note-preview-box input[type="button"]')).toBeNull();
+      expect(document.querySelector('.note-preview-box input[type="file"]')).toBeNull();
+      expect(document.querySelector('.note-preview-box input[type="hidden"]')).toBeNull();
+    });
+
+    it('sanitizes malicious script tags and event handlers', () => {
+      const maliciousHtml = '<script>alert("xss")</script><img src="x" onerror="alert(1)" /><a href="https://example.com" onclick="alert(1)">Click link</a>';
+      renderComponent('create', 'Title', maliciousHtml);
+      const previewTab = screen.getByRole('tab', { name: /preview/i });
+      fireEvent.click(previewTab);
+
+      expect(document.querySelector('.note-preview-box script')).toBeNull();
+      expect(document.querySelector('.note-preview-box img')).toBeNull();
+      const link = document.querySelector('.note-preview-box a');
+      expect(link).not.toBeNull();
+      expect(link?.getAttribute('onclick')).toBeNull();
+      expect(link?.getAttribute('href')).toBe('https://example.com');
+    });
+  });
+
+  describe('Validation, Errors, Toolbar, and Keyboard Shortcuts Coverage', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.runOnlyPendingTimers();
+      jest.useRealTimers();
+    });
+
+    it('validates title length when exceeding 200 characters', async () => {
+      try {
+        renderComponent('create', 'a'.repeat(201), 'Valid Content');
+        fireEvent.click(screen.getByRole('button', { name: 'Create Note' }));
+
+        expect(await screen.findByText('Title cannot exceed 200 characters.')).toBeInTheDocument();
+        expect(mockOnSubmit).not.toHaveBeenCalled();
+      } catch (error) {
+        throw new Error(`Title validation test failed: ${(error as Error).message}`);
+      }
+    });
+
+    it('clears field errors when user edits title or content after failed submit', async () => {
+      try {
+        renderComponent('create');
+        fireEvent.click(screen.getByRole('button', { name: 'Create Note' }));
+
+        expect(await screen.findByText('Title is required.')).toBeInTheDocument();
+        expect(screen.getByText('Content is required.')).toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText(/title/i), { target: { value: 'New Title' } });
+        expect(screen.queryByText('Title is required.')).not.toBeInTheDocument();
+
+        fireEvent.change(screen.getByLabelText(/content/i), { target: { value: 'New Content' } });
+        expect(screen.queryByText('Content is required.')).not.toBeInTheDocument();
+      } catch (error) {
+        throw new Error(`Clearing field errors test failed: ${(error as Error).message}`);
+      }
+    });
+
+    it('handles submission errors when onSubmit throws an Error instance', async () => {
+      try {
+        mockOnSubmit.mockRejectedValueOnce(new Error('Failed to save note to server.'));
+        renderComponent('create', 'Title', 'Content');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Create Note' }));
+
+        expect(await screen.findByText('Failed to save note to server.')).toBeInTheDocument();
+      } catch (error) {
+        throw new Error(`Submission Error instance test failed: ${(error as Error).message}`);
+      }
+    });
+
+    it('handles submission errors when onSubmit throws a non-Error object', async () => {
+      try {
+        mockOnSubmit.mockRejectedValueOnce('Network error string');
+        renderComponent('create', 'Title', 'Content');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Create Note' }));
+
+        expect(await screen.findByText('An error occurred while saving the note. Please try again.')).toBeInTheDocument();
+      } catch (error) {
+        throw new Error(`Submission non-Error object test failed: ${(error as Error).message}`);
+      }
+    });
+
+    it('triggers formatting from toolbar buttons (Italic, Underline, H2, H3, Bullet, Numbered, Task, Link, Quote, Code)', () => {
+      renderComponent('create', 'Title', '');
+
+      const italicBtn = screen.getByRole('button', { name: /italic text/i });
+      fireEvent.click(italicBtn);
+      jest.runAllTimers();
+      const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+      expect(textarea.value).toBe('*text*');
+
+      fireEvent.click(screen.getByRole('button', { name: /underline text/i }));
+      jest.runAllTimers();
+      expect(textarea.value).toContain('<u>');
+
+      fireEvent.click(screen.getByRole('button', { name: /heading 2/i }));
+      jest.runAllTimers();
+      expect(textarea.value).toContain('## ');
+
+      fireEvent.click(screen.getByRole('button', { name: /heading 3/i }));
+      jest.runAllTimers();
+      expect(textarea.value).toContain('### ');
+
+      fireEvent.click(screen.getByRole('button', { name: /bullet list/i }));
+      jest.runAllTimers();
+      expect(textarea.value).toContain('- ');
+
+      fireEvent.click(screen.getByRole('button', { name: /numbered list/i }));
+      jest.runAllTimers();
+      expect(textarea.value).toContain('1. ');
+
+      fireEvent.click(screen.getByRole('button', { name: /checklist task/i }));
+      jest.runAllTimers();
+      expect(textarea.value).toContain('- [ ] ');
+
+      fireEvent.click(screen.getByRole('button', { name: /insert link/i }));
+      jest.runAllTimers();
+      expect(textarea.value).toContain('](https://example.com)');
+
+      fireEvent.click(screen.getByRole('button', { name: /quote/i }));
+      jest.runAllTimers();
+      expect(textarea.value).toContain('> ');
+
+      fireEvent.click(screen.getByRole('button', { name: /code snippet/i }));
+      jest.runAllTimers();
+      expect(textarea.value).toContain('`');
+    });
+
+    it('handles Ctrl+B, Ctrl+I, Ctrl+U, Ctrl+K keyboard shortcuts in editor', () => {
+      renderComponent('create', 'Title', 'sample');
+      const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+      textarea.selectionStart = 0;
+      textarea.selectionEnd = 6;
+
+      fireEvent.keyDown(textarea, { key: 'b', ctrlKey: true });
+      jest.runAllTimers();
+      expect(textarea.value).toBe('**sample**');
+
+      textarea.selectionStart = 0;
+      textarea.selectionEnd = textarea.value.length;
+      fireEvent.keyDown(textarea, { key: 'i', ctrlKey: true });
+      jest.runAllTimers();
+      expect(textarea.value).toBe('***sample***');
+
+      textarea.selectionStart = 0;
+      textarea.selectionEnd = textarea.value.length;
+      fireEvent.keyDown(textarea, { key: 'u', ctrlKey: true });
+      jest.runAllTimers();
+      expect(textarea.value).toBe('<u>***sample***</u>');
+
+      textarea.selectionStart = 0;
+      textarea.selectionEnd = textarea.value.length;
+      fireEvent.keyDown(textarea, { key: 'k', ctrlKey: true });
+      jest.runAllTimers();
+      expect(textarea.value).toContain('](https://example.com)');
+    });
+
+    it.each([
+      ['handles list continuation for numbered lists on Enter key', '1. Item one', '1. Item one\n2. '],
+      ['terminates empty numbered list item on Enter key', '1. Item one\n2. ', '1. Item one\n'],
+      ['terminates empty task list item on Enter key', '- [ ] ', ''],
+      ['terminates empty bullet list item on Enter key', '- ', ''],
+    ])('%s', (_description, initialContent, expectedContent) => {
+      renderComponent('create', 'Title', initialContent);
+      const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+      textarea.selectionStart = textarea.value.length;
+      textarea.selectionEnd = textarea.value.length;
+      fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+      jest.runAllTimers();
+      expect(textarea.value).toBe(expectedContent);
+    });
+  });
+
+  describe('SonarQube Regex Optimization & ReDoS Prevention Tests', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({ doNotFake: ['performance'] });
+    });
+
+    afterEach(() => {
+      jest.runOnlyPendingTimers();
+      jest.useRealTimers();
+    });
+
+    it('clears formatting on lines starting with task lists without super-linear backtracking (Line 291 fix)', () => {
+      const taskLine = '- [  x  ] Task with extra space';
+      renderComponent('create', 'Title', taskLine);
+
+      const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+      textarea.selectionStart = 0;
+      textarea.selectionEnd = taskLine.length;
+
+      const clearBtn = screen.getByRole('button', { name: /clear formatting/i });
+      fireEvent.click(clearBtn);
+
+      expect(textarea.value).toBe('Task with extra space');
+    });
+
+    it('handles long adversarial inputs for task clear formatting in linear time (Line 291 ReDoS safety)', () => {
+      const longSpaces = ' '.repeat(10000);
+      const adversarialInput = `- [${longSpaces}] Non-matching task bracket without closing bracket`;
+      renderComponent('create', 'Title', adversarialInput);
+
+      const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+      textarea.selectionStart = 0;
+      textarea.selectionEnd = adversarialInput.length;
+
+      const startTime = performance.now();
+      const clearBtn = screen.getByRole('button', { name: /clear formatting/i });
+      fireEvent.click(clearBtn);
+      const endTime = performance.now();
+
+      expect(endTime - startTime).toBeLessThan(100);
+    });
+
+    it('handles task list continuation on Enter with whitespace in linear time (Line 356 & 360 fix)', () => {
+      const longContent = 'x'.repeat(10000);
+      renderComponent('create', 'Title', `  - [ x ] ${longContent}`);
+
+      const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+      textarea.selectionStart = textarea.value.length;
+      textarea.selectionEnd = textarea.value.length;
+
+      const startTime = performance.now();
+      fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+      jest.runAllTimers();
+      const endTime = performance.now();
+
+      expect(endTime - startTime).toBeLessThan(100);
+      expect(textarea.value).toBe(`  - [ x ] ${longContent}\n  - [ ] `);
+    });
+
+    it('handles bullet list continuation on Enter with long line content in linear time (Line 366 fix)', () => {
+      const longContent = 'a'.repeat(20000);
+      renderComponent('create', 'Title', `  - ${longContent}`);
+
+      const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+      textarea.selectionStart = textarea.value.length;
+      textarea.selectionEnd = textarea.value.length;
+
+      const startTime = performance.now();
+      fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+      jest.runAllTimers();
+      const endTime = performance.now();
+
+      expect(endTime - startTime).toBeLessThan(100);
+      expect(textarea.value).toBe(`  - ${longContent}\n  - `);
+    });
+
+    it('handles numbered list continuation on Enter with long line content in linear time (Line 376 fix)', () => {
+      const longContent = 'b'.repeat(20000);
+      renderComponent('create', 'Title', `   42. ${longContent}`);
+
+      const textarea = screen.getByLabelText(/content/i) as HTMLTextAreaElement;
+      textarea.selectionStart = textarea.value.length;
+      textarea.selectionEnd = textarea.value.length;
+
+      const startTime = performance.now();
+      fireEvent.keyDown(textarea, { key: 'Enter', code: 'Enter' });
+      jest.runAllTimers();
+      const endTime = performance.now();
+
+      expect(endTime - startTime).toBeLessThan(100);
+      expect(textarea.value).toBe(`   42. ${longContent}\n   43. `);
+    });
+  });
 });
+
+

@@ -1,14 +1,14 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { BrowserRouter, NavigateFunction } from 'react-router-dom';
 import { Register } from '../Register';
 import * as AuthContextModule from '../../context/AuthContext';
+import { LoginInput, RegisterInput, User } from '../../types';
 
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
+const mockNavigate = jest.fn<ReturnType<NavigateFunction>, Parameters<NavigateFunction>>();
+jest.mock('react-router-dom', () => {
   let actual: typeof import('react-router-dom');
   try {
-    actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    actual = jest.requireActual<typeof import('react-router-dom')>('react-router-dom');
   } catch (error) {
     throw new Error(`Failed to import actual react-router-dom module in test setup: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -19,20 +19,20 @@ vi.mock('react-router-dom', async () => {
 });
 
 describe('Register (Signup) Component', () => {
-  const mockRegister = vi.fn();
+  const mockRegister = jest.fn<Promise<void>, [RegisterInput]>();
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    vi.spyOn(AuthContextModule, 'useAuth').mockReturnValue({
+    jest.clearAllMocks();
+    jest.spyOn(AuthContextModule, 'useAuth').mockReturnValue({
       user: null,
       token: null,
       isAuthenticated: false,
       loading: false,
-      login: vi.fn(),
+      login: jest.fn<Promise<void>, [LoginInput]>(),
       register: mockRegister,
-      logout: vi.fn(),
-      updateUser: vi.fn(),
-      refreshUser: vi.fn(),
+      logout: jest.fn<Promise<void>, []>(),
+      updateUser: jest.fn<void, [User]>(),
+      refreshUser: jest.fn<Promise<void>, []>(),
     });
   });
 

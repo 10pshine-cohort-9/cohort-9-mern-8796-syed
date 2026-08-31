@@ -27,3 +27,8 @@ dist-ssr/
 # Environment files
 .env*
 !.env.example
+
+# Coverage and SonarScanner
+coverage/
+.scannerwork/
+

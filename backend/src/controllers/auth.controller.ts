@@ -1,9 +1,7 @@
-import type { RequestHandler } from 'express';
-
 import { ApiError } from '../utils/ApiError';
 import { changePassword, getAuthenticatedUser, login, logout, register, updateProfile } from '../services/auth.service';
 import { sendSuccess } from '../utils/ApiResponse';
-import { asyncHandler } from '../utils/asyncHandler';
+import { asyncHandler, type AsyncRequestHandler } from '../utils/asyncHandler';
 
 type RegisterRequestBody = {
     readonly email: string;
@@ -113,7 +111,9 @@ function validateChangePasswordPayload(body: unknown): ChangePasswordRequestBody
     return { currentPassword, newPassword };
 }
 
-const registerHandler: RequestHandler<unknown, unknown, RegisterRequestBody> = async (req, res) => {
+import type { ParamsDictionary } from 'express-serve-static-core';
+
+const registerHandler: AsyncRequestHandler<ParamsDictionary, unknown, RegisterRequestBody> = async (req, res) => {
     try {
         const payload = validateRegisterPayload(req.body);
         const result = await register(payload);
@@ -124,7 +124,7 @@ const registerHandler: RequestHandler<unknown, unknown, RegisterRequestBody> = a
     }
 };
 
-const loginHandler: RequestHandler<unknown, unknown, LoginRequestBody> = async (req, res) => {
+const loginHandler: AsyncRequestHandler<ParamsDictionary, unknown, LoginRequestBody> = async (req, res) => {
     try {
         const payload = validateLoginPayload(req.body);
         const result = await login(payload);
@@ -135,7 +135,7 @@ const loginHandler: RequestHandler<unknown, unknown, LoginRequestBody> = async (
     }
 };
 
-const meHandler: RequestHandler = async (req, res) => {
+const meHandler: AsyncRequestHandler = async (req, res) => {
     const userId = req.authenticatedUser?.userId;
 
     if (userId === undefined) {
@@ -153,7 +153,7 @@ const meHandler: RequestHandler = async (req, res) => {
     }
 };
 
-const updateProfileHandler: RequestHandler<unknown, unknown, UpdateProfileRequestBody> = async (req, res) => {
+const updateProfileHandler: AsyncRequestHandler<ParamsDictionary, unknown, UpdateProfileRequestBody> = async (req, res) => {
     const userId = req.authenticatedUser?.userId;
 
     if (userId === undefined) {
@@ -172,7 +172,7 @@ const updateProfileHandler: RequestHandler<unknown, unknown, UpdateProfileReques
     }
 };
 
-const changePasswordHandler: RequestHandler<unknown, unknown, ChangePasswordRequestBody> = async (req, res) => {
+const changePasswordHandler: AsyncRequestHandler<ParamsDictionary, unknown, ChangePasswordRequestBody> = async (req, res) => {
     const userId = req.authenticatedUser?.userId;
 
     if (userId === undefined) {
@@ -189,7 +189,7 @@ const changePasswordHandler: RequestHandler<unknown, unknown, ChangePasswordRequ
     }
 };
 
-const logoutHandler: RequestHandler = async (req, res) => {
+const logoutHandler: AsyncRequestHandler = async (req, res) => {
     const userId = req.authenticatedUser?.userId;
     const tokenId = req.authenticatedUser?.tokenId;
     const expiresAt = req.authenticatedUser?.expiresAt;

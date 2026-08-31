@@ -1,15 +1,14 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { Profile } from '../Profile';
 import * as AuthContextModule from '../../context/AuthContext';
 import { authApi } from '../../services/api';
-import { User } from '../../types';
+import { LoginInput, RegisterInput, User } from '../../types';
 
-vi.mock('../../services/api', () => ({
+jest.mock('../../services/api', () => ({
   authApi: {
-    updateProfile: vi.fn(),
-    changePassword: vi.fn(),
+    updateProfile: jest.fn<ReturnType<typeof authApi.updateProfile>, Parameters<typeof authApi.updateProfile>>(),
+    changePassword: jest.fn<ReturnType<typeof authApi.changePassword>, Parameters<typeof authApi.changePassword>>(),
   },
   ApiError: class ApiError extends Error {
     constructor(public message: string, public statusCode: number = 400) {
@@ -24,20 +23,20 @@ describe('Profile Page Component', () => {
     name: 'Jane Doe',
     email: 'jane@example.com',
   };
-  const mockUpdateUser = vi.fn<(user: User) => void>();
-  const mockUpdateToken = vi.fn<(token: string) => void>();
-  const mockRefreshUser = vi.fn<() => Promise<void>>();
+  const mockUpdateUser = jest.fn<void, [User]>();
+  const mockUpdateToken = jest.fn<void, [string]>();
+  const mockRefreshUser = jest.fn<Promise<void>, []>();
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    vi.spyOn(AuthContextModule, 'useAuth').mockReturnValue({
+    jest.clearAllMocks();
+    jest.spyOn(AuthContextModule, 'useAuth').mockReturnValue({
       user: mockUser,
       token: 'test-token',
       isAuthenticated: true,
       loading: false,
-      login: vi.fn(),
-      register: vi.fn(),
-      logout: vi.fn(),
+      login: jest.fn<Promise<void>, [LoginInput]>(),
+      register: jest.fn<Promise<void>, [RegisterInput]>(),
+      logout: jest.fn<Promise<void>, []>(),
       updateUser: mockUpdateUser,
       updateToken: mockUpdateToken,
       refreshUser: mockRefreshUser,
@@ -65,7 +64,7 @@ describe('Profile Page Component', () => {
 
   it('updates personal information and calls updateUser context', async () => {
     const updatedUser: User = { id: 'user-123', name: 'Jane Smith', email: 'jane.smith@example.com' };
-    vi.mocked(authApi.updateProfile).mockResolvedValueOnce({ user: updatedUser });
+    jest.mocked(authApi.updateProfile).mockResolvedValueOnce({ user: updatedUser });
 
     renderComponent();
 
@@ -139,7 +138,7 @@ describe('Profile Page Component', () => {
 
   it('submits change password successfully, updates token session, and clears input fields', async () => {
     const newToken = 'replacement-jwt-token';
-    vi.mocked(authApi.changePassword).mockResolvedValueOnce({ token: newToken });
+    jest.mocked(authApi.changePassword).mockResolvedValueOnce({ token: newToken });
 
     renderComponent();
 
